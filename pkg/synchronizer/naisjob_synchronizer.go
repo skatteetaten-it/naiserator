@@ -12,6 +12,7 @@ import (
 	"github.com/nais/naiserator/pkg/resourcecreator"
 	"github.com/nais/naiserator/pkg/resourcecreator/resource"
 	log "github.com/sirupsen/logrus"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -168,7 +169,16 @@ func (n *Synchronizer) PrepareNaisjob(naisjob *nais_io_v1.Naisjob) (*Rollout, er
 		rollout.ResourceOptions.Linkerd = true
 	}
 
-	rollout.ResourceOperations, err = resourcecreator.CreateNaisjob(naisjob, rollout.ResourceOptions)
+	var currentBatch = batchv1.Job{}
+	err = n.Get(ctx, client.ObjectKey{Namespace: naisjob.GetNamespace(), Name: naisjob.GetName()}, &currentBatch)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			log.Infof("Naisjob has has no current batches")
+			err = nil
+		}
+	}
+
+	rollout.ResourceOperations, err = resourcecreator.CreateNaisjob(naisjob, rollout.ResourceOptions, &currentBatch)
 
 	if err != nil {
 		return nil, fmt.Errorf("creating cluster resource operations: %s", err)

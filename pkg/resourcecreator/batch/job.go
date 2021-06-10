@@ -10,13 +10,32 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func CreateJobSpec(naisjob *nais_io_v1.Naisjob, ast *resource.Ast, resourceOptions resource.Options) (batchv1.JobSpec, error) {
+func CreateJobSpec(naisjob *nais_io_v1.Naisjob, ast *resource.Ast, resourceOptions resource.Options, batch *batchv1.Job) (batchv1.JobSpec, error) {
 	podSpec, err := pod.CreateSpec(ast, resourceOptions, naisjob.GetName(), corev1.RestartPolicyNever)
 	if err != nil {
 		return batchv1.JobSpec{}, err
 	}
 
-	jobSpec := batchv1.JobSpec{
+	jobSpec := addJobSpec(naisjob, ast, podSpec, batch)
+
+	return jobSpec, nil
+}
+
+func addJobSpec(naisjob *nais_io_v1.Naisjob, ast *resource.Ast, podSpec *corev1.PodSpec, batch *batchv1.Job) batchv1.JobSpec {
+	jobSpec := toJobSpec(naisjob, ast, podSpec, batch)
+	if naisjob.Spec.ManualSelector {
+		jobSpec = addManualSelector(naisjob, jobSpec)
+	}
+	return jobSpec
+}
+
+func toJobSpec(naisjob *nais_io_v1.Naisjob, ast *resource.Ast, podSpec *corev1.PodSpec, batch *batchv1.Job) batchv1.JobSpec {
+	naisJobObjectMeta := pod.CreateNaisjobObjectMeta(naisjob, ast)
+	if batch.Name != "" {
+		naisJobObjectMeta.Labels["app"] = naisjob.Name
+	}
+
+	return batchv1.JobSpec{
 		ActiveDeadlineSeconds: naisjob.Spec.ActiveDeadlineSeconds,
 		BackoffLimit:          util.Int32p(naisjob.Spec.BackoffLimit),
 		Template: corev1.PodTemplateSpec{
@@ -25,11 +44,20 @@ func CreateJobSpec(naisjob *nais_io_v1.Naisjob, ast *resource.Ast, resourceOptio
 		},
 		TTLSecondsAfterFinished: naisjob.Spec.TTLSecondsAfterFinished,
 	}
-
-	return jobSpec, nil
 }
 
-func CreateJob(naisjob *nais_io_v1.Naisjob, ast *resource.Ast, resourceOptions resource.Options) error {
+func addManualSelector(naisjob *nais_io_v1.Naisjob, jobSpec batchv1.JobSpec) batchv1.JobSpec {
+	manualSelector := true
+	jobSpec.ManualSelector = &manualSelector
+	labels := make(map[string]string)
+	labels["app"] = naisjob.GetName()
+	jobSpec.Selector = &metav1.LabelSelector{
+		MatchLabels: labels,
+	}
+	return jobSpec
+}
+
+func CreateJob(naisjob *nais_io_v1.Naisjob, ast *resource.Ast, resourceOptions resource.Options, batch *batchv1.Job) error {
 
 	objectMeta := resource.CreateObjectMeta(naisjob)
 
@@ -37,7 +65,7 @@ func CreateJob(naisjob *nais_io_v1.Naisjob, ast *resource.Ast, resourceOptions r
 		objectMeta.Annotations["kubernetes.io/change-cause"] = val
 	}
 
-	jobSpec, err := CreateJobSpec(naisjob, ast, resourceOptions)
+	jobSpec, err := CreateJobSpec(naisjob, ast, resourceOptions, batch)
 	if err != nil {
 		return err
 	}

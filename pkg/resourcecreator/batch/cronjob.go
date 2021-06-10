@@ -4,11 +4,12 @@ import (
 	nais_io_v1 "github.com/nais/liberator/pkg/apis/nais.io/v1"
 	"github.com/nais/naiserator/pkg/resourcecreator/resource"
 	"github.com/nais/naiserator/pkg/util"
+	batchv1 "k8s.io/api/batch/v1"
 	"k8s.io/api/batch/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func CreateCronJob(naisjob *nais_io_v1.Naisjob, ast *resource.Ast, resourceOptions resource.Options) error {
+func CreateCronJob(naisjob *nais_io_v1.Naisjob, ast *resource.Ast, resourceOptions resource.Options, batch *batchv1.Job) error {
 
 	objectMeta := resource.CreateObjectMeta(naisjob)
 
@@ -16,7 +17,7 @@ func CreateCronJob(naisjob *nais_io_v1.Naisjob, ast *resource.Ast, resourceOptio
 		objectMeta.Annotations["kubernetes.io/change-cause"] = val
 	}
 
-	jobSpec, err := CreateJobSpec(naisjob, ast, resourceOptions)
+	jobSpec, err := CreateJobSpec(naisjob, ast, resourceOptions, batch)
 	if err != nil {
 		return err
 	}

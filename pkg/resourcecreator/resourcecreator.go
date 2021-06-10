@@ -32,6 +32,7 @@ import (
 	"github.com/nais/naiserator/pkg/resourcecreator/service"
 	"github.com/nais/naiserator/pkg/resourcecreator/serviceaccount"
 	"github.com/nais/naiserator/pkg/resourcecreator/vault"
+	batchv1 "k8s.io/api/batch/v1"
 )
 
 // CreateApplication takes an Application resource and returns a slice of Kubernetes resources
@@ -98,7 +99,7 @@ func CreateApplication(app *nais_io_v1alpha1.Application, resourceOptions resour
 
 // CreateNaisjob takes an Naisjob resource and returns a slice of Kubernetes resources
 // along with information about what to do with these resources.
-func CreateNaisjob(naisjob *nais_io_v1.Naisjob, resourceOptions resource.Options) (resource.Operations, error) {
+func CreateNaisjob(naisjob *nais_io_v1.Naisjob, resourceOptions resource.Options, currentBatch *batchv1.Job) (resource.Operations, error) {
 	team, ok := naisjob.Labels["team"]
 	if !ok || len(team) == 0 {
 		return nil, fmt.Errorf("the 'team' label needs to be set in the application metadata")
@@ -137,11 +138,11 @@ func CreateNaisjob(naisjob *nais_io_v1.Naisjob, resourceOptions resource.Options
 	pod.CreateNaisjobContainer(naisjob, ast, resourceOptions)
 
 	if naisjob.Spec.Schedule == "" {
-		if err := batch.CreateJob(naisjob, ast, resourceOptions); err != nil {
+		if err := batch.CreateJob(naisjob, ast, resourceOptions, currentBatch); err != nil {
 			return nil, err
 		}
 	} else {
-		if err := batch.CreateCronJob(naisjob, ast, resourceOptions); err != nil {
+		if err := batch.CreateCronJob(naisjob, ast, resourceOptions, currentBatch); err != nil {
 			return nil, err
 		}
 	}
