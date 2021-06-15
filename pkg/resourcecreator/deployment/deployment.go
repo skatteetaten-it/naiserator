@@ -14,17 +14,13 @@ import (
 )
 
 func Create(app *nais_io_v1alpha1.Application, ast *resource.Ast, resourceOptions resource.Options) error {
-	objectMeta := app.CreateObjectMeta()
+	objectMeta := resource.CreateObjectMeta(app)
 	spec, err := deploymentSpec(app, ast, resourceOptions)
 	if err != nil {
 		return fmt.Errorf("create deployment: %w", err)
 	}
 
 	if val, ok := app.Annotations["kubernetes.io/change-cause"]; ok {
-		if objectMeta.Annotations == nil {
-			objectMeta.Annotations = make(map[string]string)
-		}
-
 		objectMeta.Annotations["kubernetes.io/change-cause"] = val
 	}
 
@@ -43,7 +39,7 @@ func Create(app *nais_io_v1alpha1.Application, ast *resource.Ast, resourceOption
 }
 
 func deploymentSpec(app *nais_io_v1alpha1.Application, ast *resource.Ast, resourceOptions resource.Options) (*appsv1.DeploymentSpec, error) {
-	podSpec, err := pod.CreateSpec(ast, resourceOptions, app.Name)
+	podSpec, err := pod.CreateSpec(ast, resourceOptions, app.Name, corev1.RestartPolicyAlways)
 	if err != nil {
 		return nil, err
 	}
@@ -79,7 +75,7 @@ func deploymentSpec(app *nais_io_v1alpha1.Application, ast *resource.Ast, resour
 		ProgressDeadlineSeconds: util.Int32p(300),
 		RevisionHistoryLimit:    util.Int32p(10),
 		Template: corev1.PodTemplateSpec{
-			ObjectMeta: pod.CreateAppObjectMeta(app, ast), // pod.ObjectMeta(objectMeta, appPort, prometheusConfig, logFormat, logTransform),
+			ObjectMeta: pod.CreateAppObjectMeta(app, ast),
 			Spec:       *podSpec,
 		},
 	}, nil

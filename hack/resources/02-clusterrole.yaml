@@ -10,7 +10,9 @@ rules:
       - '*'
     resources:
       - 'applications'
+      - 'aivenapplications'
       - 'azureadapplications'
+      - 'cronjobs'
       - 'deployments'
       - 'endpoints'
       - 'events'
@@ -21,7 +23,9 @@ rules:
       - 'idportenclients'
       - 'ingresses'
       - 'jwkers'
+      - 'jobs'
       - 'maskinportenclients'
+      - 'naisjobs'
       - 'namespaces'
       - 'networkpolicies'
       - 'rolebindings'
@@ -35,6 +39,7 @@ rules:
       - 'storagebucketaccesscontrols'
       - 'storagebuckets'
       - 'poddisruptionbudgets'
+      - 'bigquerydatasets'
     verbs:
       - 'get'
       - 'create'
