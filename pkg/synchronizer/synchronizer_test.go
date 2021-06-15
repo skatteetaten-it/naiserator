@@ -10,6 +10,8 @@ import (
 	"github.com/nais/naiserator/pkg/resourcecreator/google"
 	ingress "github.com/nais/naiserator/pkg/resourcecreator/ingress"
 	"github.com/nais/naiserator/pkg/resourcecreator/resource"
+	"github.com/nais/naiserator/pkg/synchronizer"
+	batchv1 "k8s.io/api/batch/v1"
 
 	iam_cnrm_cloud_google_com_v1beta1 "github.com/nais/liberator/pkg/apis/iam.cnrm.cloud.google.com/v1beta1"
 	nais_io_v1 "github.com/nais/liberator/pkg/apis/nais.io/v1"
@@ -19,7 +21,6 @@ import (
 	liberator_scheme "github.com/nais/liberator/pkg/scheme"
 	"github.com/nais/naiserator/pkg/naiserator/config"
 	naiserator_scheme "github.com/nais/naiserator/pkg/scheme"
-	"github.com/nais/naiserator/pkg/synchronizer"
 	"github.com/nais/naiserator/pkg/test/fixtures"
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
@@ -36,11 +37,12 @@ import (
 )
 
 type testRig struct {
-	kubernetes   *envtest.Environment
-	client       client.Client
-	manager      ctrl.Manager
-	synchronizer reconcile.Reconciler
-	scheme       *runtime.Scheme
+	kubernetes          *envtest.Environment
+	client              client.Client
+	manager             ctrl.Manager
+	appSynchronizer     reconcile.Reconciler
+	naisjobSynchronizer reconcile.Reconciler
+	scheme              *runtime.Scheme
 }
 
 func newTestRig(options resource.Options) (*testRig, error) {
@@ -95,7 +97,21 @@ func newTestRig(options resource.Options) (*testRig, error) {
 	if err != nil {
 		return nil, fmt.Errorf("setup synchronizer with manager: %w", err)
 	}
-	rig.synchronizer = applicationReconciler
+	rig.appSynchronizer = applicationReconciler
+
+	naisjobReconciler := controllers.NewNaisjobReconciler(synchronizer.Synchronizer{
+		Client:          rig.client,
+		SimpleClient:    rig.client,
+		Scheme:          rig.scheme,
+		ResourceOptions: options,
+		Config:          syncerConfig,
+	})
+
+	err = naisjobReconciler.SetupWithManager(rig.manager)
+	if err != nil {
+		return nil, fmt.Errorf("setup synchronizer with manager: %w", err)
+	}
+	rig.naisjobSynchronizer = naisjobReconciler
 
 	return rig, nil
 }
@@ -123,129 +139,13 @@ func TestSynchronizer(t *testing.T) {
 	listers := naiserator_scheme.GenericListers()
 	listers = append(listers, naiserator_scheme.GCPListers()...)
 	for _, list := range listers {
-		err = rig.client.List(ctx, list)
+		err := rig.client.List(ctx, list)
 		assert.NoError(t, err)
 	}
 
-	// Create Application fixture
-	app := fixtures.MinimalApplication()
+	rig.runApplicationTests(t, ctx, resourceOptions)
+	rig.runNaisjobTests(t, ctx, resourceOptions)
 
-	app.SetAnnotations(map[string]string{
-		nais_io_v1.DeploymentCorrelationIDAnnotation: "deploy-id",
-	})
-
-	// Test that a resource has been created in the fake cluster
-	testResource := func(resource runtime.Object, objectKey client.ObjectKey) {
-		err := rig.client.Get(ctx, objectKey, resource)
-		assert.NoError(t, err)
-		assert.NotNil(t, resource)
-	}
-
-	// Test that a resource does not exist in the fake cluster
-	testResourceNotExist := func(resource runtime.Object, objectKey client.ObjectKey) {
-		err := rig.client.Get(ctx, objectKey, resource)
-		assert.True(t, errors.IsNotFound(err), "the resource found in the cluster should not be there")
-	}
-
-	// Store the Application resource in the cluster before testing commences.
-	// This simulates a deployment into the cluster which is then picked up by the
-	// informer queue.
-	err = rig.client.Create(ctx, app)
-	if err != nil {
-		t.Fatalf("Application resource cannot be persisted to fake Kubernetes: %s", err)
-	}
-
-	// Create an Ingress object that should be deleted once processing has run.
-	ast := resource.NewAst()
-	app.Spec.Ingresses = []nais_io_v1.Ingress{"https://foo.bar"}
-	err = ingress.Create(app, ast, resourceOptions, app.Spec.Ingresses, app.Spec.Liveness.Path, app.Spec.Service.Protocol, app.Annotations)
-	assert.NoError(t, err)
-	ing := ast.Operations[0].Resource.(*networkingv1beta1.Ingress)
-	app.Spec.Ingresses = []nais_io_v1.Ingress{}
-	err = rig.client.Create(ctx, ing)
-	if err != nil || len(ing.Spec.Rules) == 0 {
-		t.Fatalf("BUG: error creating ingress for testing: %s", err)
-	}
-
-	// Create an Ingress object with application label but without ownerReference.
-	// This resource should persist in the cluster even after synchronization.
-	app.Spec.Ingresses = []nais_io_v1.Ingress{"https://foo.bar"}
-	err = ingress.Create(app, ast, resourceOptions, app.Spec.Ingresses, app.Spec.Liveness.Path, app.Spec.Service.Protocol, app.Annotations)
-	assert.NoError(t, err)
-	ing = ast.Operations[1].Resource.(*networkingv1beta1.Ingress)
-	ing.SetName("disowned-ingress")
-	ing.SetOwnerReferences(nil)
-	app.Spec.Ingresses = []nais_io_v1.Ingress{}
-	err = rig.client.Create(ctx, ing)
-	if err != nil || len(ing.Spec.Rules) == 0 {
-		t.Fatalf("BUG: error creating ingress 2 for testing: %s", err)
-	}
-
-	// Run synchronization processing.
-	// This will attempt to store numerous resources in Kubernetes.
-	req := ctrl.Request{
-		NamespacedName: types.NamespacedName{
-			Namespace: app.Namespace,
-			Name:      app.Name,
-		},
-	}
-	result, err := rig.synchronizer.Reconcile(req)
-	assert.NoError(t, err)
-	assert.Equal(t, ctrl.Result{}, result)
-
-	// Test that the Application was updated successfully after processing,
-	// and that the hash is present.
-	objectKey := client.ObjectKey{Name: app.Name, Namespace: app.Namespace}
-	persistedApp := &nais_io_v1alpha1.Application{}
-	err = rig.client.Get(ctx, objectKey, persistedApp)
-	hash, _ := app.Hash()
-	assert.NotNil(t, persistedApp)
-	assert.NoError(t, err)
-	assert.Equalf(t, hash, persistedApp.Status.SynchronizationHash, "Application resource hash in Kubernetes matches local version")
-
-	// Test that the status field is set with RolloutComplete
-	assert.Equalf(t, synchronizer.EventSynchronized, persistedApp.Status.SynchronizationState, "Synchronization state is set")
-	assert.Equalf(t, "deploy-id", persistedApp.Status.CorrelationID, "Correlation ID is set")
-
-	// Test that a base resource set was created successfully
-	testResource(&appsv1.Deployment{}, objectKey)
-	testResource(&corev1.Service{}, objectKey)
-	testResource(&corev1.ServiceAccount{}, objectKey)
-
-	// Test that the Ingress resource was removed
-	testResourceNotExist(&networkingv1beta1.Ingress{}, objectKey)
-
-	// Test that a Synchronized event was generated and has the correct deployment correlation id
-	eventList := &corev1.EventList{}
-	err = rig.client.List(ctx, eventList)
-	assert.NoError(t, err)
-	assert.Len(t, eventList.Items, 1)
-	assert.EqualValues(t, 1, eventList.Items[0].Count)
-	assert.Equal(t, "deploy-id", eventList.Items[0].Annotations[nais_io_v1.DeploymentCorrelationIDAnnotation])
-	assert.Equal(t, synchronizer.EventSynchronized, eventList.Items[0].Reason)
-
-	// Run synchronization processing again, and check that resources still exist.
-	persistedApp.DeepCopyInto(app)
-	app.Status.SynchronizationHash = ""
-	app.Annotations[nais_io_v1.DeploymentCorrelationIDAnnotation] = "new-deploy-id"
-	err = rig.client.Update(ctx, app)
-	assert.NoError(t, err)
-	result, err = rig.synchronizer.Reconcile(req)
-
-	assert.NoError(t, err)
-	assert.Equal(t, ctrl.Result{}, result)
-	testResource(&appsv1.Deployment{}, objectKey)
-	testResource(&corev1.Service{}, objectKey)
-	testResource(&corev1.ServiceAccount{}, objectKey)
-	testResource(&networkingv1beta1.Ingress{}, client.ObjectKey{Name: "disowned-ingress", Namespace: app.Namespace})
-
-	// Test that the naiserator event was updated with increased count and new correlation id
-	err = rig.client.List(ctx, eventList)
-	assert.NoError(t, err)
-	assert.Len(t, eventList.Items, 1)
-	assert.EqualValues(t, 2, eventList.Items[0].Count)
-	assert.Equal(t, "new-deploy-id", eventList.Items[0].Annotations[nais_io_v1.DeploymentCorrelationIDAnnotation])
-	assert.Equal(t, synchronizer.EventSynchronized, eventList.Items[0].Reason)
 }
 
 func TestSynchronizerResourceOptions(t *testing.T) {
@@ -309,7 +209,7 @@ func TestSynchronizerResourceOptions(t *testing.T) {
 		},
 	}
 
-	result, err := rig.synchronizer.Reconcile(req)
+	result, err := rig.appSynchronizer.Reconcile(req)
 	assert.NoError(t, err)
 	assert.Equal(t, ctrl.Result{}, result)
 
@@ -339,4 +239,170 @@ func TestSynchronizerResourceOptions(t *testing.T) {
 	err = rig.client.Get(ctx, req.NamespacedName, iampolicymember)
 	assert.NoError(t, err)
 	assert.Equal(t, testProjectId, iampolicymember.Annotations[google.ProjectIdAnnotation])
+}
+func (rig *testRig) runApplicationTests(t *testing.T, ctx context.Context, resourceOptions resource.Options) {
+	// Create Application fixture
+	app := fixtures.MinimalApplication()
+
+	app.SetAnnotations(map[string]string{
+		nais_io_v1.DeploymentCorrelationIDAnnotation: "deploy-id",
+	})
+
+	// Store the Application resource in the cluster before testing commences.
+	// This simulates a deployment into the cluster which is then picked up by the
+	// informer queue.
+	err := rig.client.Create(ctx, app)
+	if err != nil {
+		t.Fatalf("Application resource cannot be persisted to fake Kubernetes: %s", err)
+	}
+
+	// Create an Ingress object that should be deleted once processing has run.
+	ast := resource.NewAst()
+	app.Spec.Ingresses = []nais_io_v1.Ingress{"https://foo.bar"}
+	err = ingress.Create(app, ast, resourceOptions, app.Spec.Ingresses, app.Spec.Liveness.Path, app.Spec.Service.Protocol, app.Annotations)
+	assert.NoError(t, err)
+	ing := ast.Operations[0].Resource.(*networkingv1beta1.Ingress)
+	app.Spec.Ingresses = []nais_io_v1.Ingress{}
+	err = rig.client.Create(ctx, ing)
+	if err != nil || len(ing.Spec.Rules) == 0 {
+		t.Fatalf("BUG: error creating ingress for testing: %s", err)
+	}
+
+	// Create an Ingress object with application label but without ownerReference.
+	// This resource should persist in the cluster even after synchronization.
+	app.Spec.Ingresses = []nais_io_v1.Ingress{"https://foo.bar"}
+	err = ingress.Create(app, ast, resourceOptions, app.Spec.Ingresses, app.Spec.Liveness.Path, app.Spec.Service.Protocol, app.Annotations)
+	assert.NoError(t, err)
+	ing = ast.Operations[1].Resource.(*networkingv1beta1.Ingress)
+	ing.SetName("disowned-ingress")
+	ing.SetOwnerReferences(nil)
+	app.Spec.Ingresses = []nais_io_v1.Ingress{}
+	err = rig.client.Create(ctx, ing)
+	if err != nil || len(ing.Spec.Rules) == 0 {
+		t.Fatalf("BUG: error creating ingress 2 for testing: %s", err)
+	}
+
+	// Run synchronization processing.
+	// This will attempt to store numerous resources in Kubernetes.
+	req := ctrl.Request{
+		NamespacedName: types.NamespacedName{
+			Namespace: app.Namespace,
+			Name:      app.Name,
+		},
+	}
+	result, err := rig.appSynchronizer.Reconcile(req)
+	assert.NoError(t, err)
+	assert.Equal(t, ctrl.Result{}, result)
+
+	// Test that the Application was updated successfully after processing,
+	// and that the hash is present.
+	objectKey := client.ObjectKey{Name: app.Name, Namespace: app.Namespace}
+	persistedApp := &nais_io_v1alpha1.Application{}
+	err = rig.client.Get(ctx, objectKey, persistedApp)
+	hash, _ := app.Hash()
+	assert.NotNil(t, persistedApp)
+	assert.NoError(t, err)
+	assert.Equalf(t, hash, persistedApp.Status.SynchronizationHash, "Application resource hash in Kubernetes matches local version")
+
+	// Test that the status field is set with RolloutComplete
+	assert.Equalf(t, synchronizer.EventSynchronized, persistedApp.Status.SynchronizationState, "Synchronization state is set")
+	assert.Equalf(t, "deploy-id", persistedApp.Status.CorrelationID, "Correlation ID is set")
+
+	// Test that a base resource set was created successfully
+	rig.testResource(ctx, t, &appsv1.Deployment{}, objectKey)
+	rig.testResource(ctx, t, &corev1.Service{}, objectKey)
+	rig.testResource(ctx, t, &corev1.ServiceAccount{}, objectKey)
+
+	// Test that the Ingress resource was removed
+	rig.testResourceNotExist(ctx, t, &networkingv1beta1.Ingress{}, objectKey)
+
+	// Test that a Synchronized event was generated and has the correct deployment correlation id
+	eventList := &corev1.EventList{}
+	err = rig.client.List(ctx, eventList)
+	assert.NoError(t, err)
+	assert.Len(t, eventList.Items, 1)
+	assert.EqualValues(t, 1, eventList.Items[0].Count)
+	assert.Equal(t, "deploy-id", eventList.Items[0].Annotations[nais_io_v1.DeploymentCorrelationIDAnnotation])
+	assert.Equal(t, synchronizer.EventSynchronized, eventList.Items[0].Reason)
+
+	// Run synchronization processing again, and check that resources still exist.
+	persistedApp.DeepCopyInto(app)
+	app.Status.SynchronizationHash = ""
+	app.Annotations[nais_io_v1.DeploymentCorrelationIDAnnotation] = "new-deploy-id"
+	err = rig.client.Update(ctx, app)
+	assert.NoError(t, err)
+	result, err = rig.appSynchronizer.Reconcile(req)
+
+	assert.NoError(t, err)
+	assert.Equal(t, ctrl.Result{}, result)
+	rig.testResource(ctx, t, &appsv1.Deployment{}, objectKey)
+	rig.testResource(ctx, t, &corev1.Service{}, objectKey)
+	rig.testResource(ctx, t, &corev1.ServiceAccount{}, objectKey)
+	rig.testResource(ctx, t, &networkingv1beta1.Ingress{}, client.ObjectKey{Name: "disowned-ingress", Namespace: app.Namespace})
+
+	// Test that the naiserator event was updated with increased count and new correlation id
+	err = rig.client.List(ctx, eventList)
+	assert.NoError(t, err)
+	assert.Len(t, eventList.Items, 1)
+	assert.EqualValues(t, 2, eventList.Items[0].Count)
+	assert.Equal(t, "new-deploy-id", eventList.Items[0].Annotations[nais_io_v1.DeploymentCorrelationIDAnnotation])
+	assert.Equal(t, synchronizer.EventSynchronized, eventList.Items[0].Reason)
+
+}
+func (rig *testRig) runNaisjobTests(t *testing.T, ctx context.Context, options resource.Options) {
+	naisjob := fixtures.MinimalNaisJob()
+	naisjob.SetAnnotations(map[string]string{
+		nais_io_v1.DeploymentCorrelationIDAnnotation: "deploy-id",
+	})
+	// Store the Naisjob resource in the cluster before testing commences.
+	// This simulates a deployment into the cluster which is then picked up by the
+	// informer queue.
+	err := rig.client.Create(ctx, naisjob)
+	if err != nil {
+		t.Fatalf("Application resource cannot be persisted to fake Kubernetes: %s", err)
+	}
+
+	// Run synchronization processing.
+	// This will attempt to store numerous resources in Kubernetes.
+	req := ctrl.Request{
+		NamespacedName: types.NamespacedName{
+			Namespace: naisjob.Namespace,
+			Name:      naisjob.Name,
+		},
+	}
+	result, err := rig.naisjobSynchronizer.Reconcile(req)
+	assert.NoError(t, err)
+	assert.Equal(t, ctrl.Result{}, result)
+
+	// Test that the Naisjob was updated successfully after processing,
+	// and that the hash is present.
+	objectKey := client.ObjectKey{Name: naisjob.Name, Namespace: naisjob.Namespace}
+	persistedNaisjob := &nais_io_v1.Naisjob{}
+	err = rig.client.Get(ctx, objectKey, persistedNaisjob)
+	hash, _ := naisjob.Hash()
+
+	assert.NotNil(t, persistedNaisjob)
+	assert.NoError(t, err)
+	assert.Equalf(t, hash, persistedNaisjob.Status.SynchronizationHash, "Naisjob resource hash in Kubernetes matches local version")
+
+	// Test that the status field is set with RolloutComplete
+	assert.Equalf(t, synchronizer.EventSynchronized, persistedNaisjob.Status.SynchronizationState, "Synchronization state is set")
+	assert.Equalf(t, "deploy-id", persistedNaisjob.Status.CorrelationID, "Correlation ID is set")
+
+	// Test that a base resource set was created successfully
+	rig.testResource(ctx, t, &batchv1.Job{}, objectKey)
+
+}
+
+// Test that a resource has been created in the fake cluster
+func (rig *testRig) testResource(ctx context.Context, t *testing.T, resource runtime.Object, objectKey client.ObjectKey) {
+	err := rig.client.Get(ctx, objectKey, resource)
+	assert.NoError(t, err)
+	assert.NotNil(t, resource)
+}
+
+// Test that a resource does not exist in the fake cluster
+func (rig *testRig) testResourceNotExist(ctx context.Context, t *testing.T, resource runtime.Object, objectKey client.ObjectKey) {
+	err := rig.client.Get(ctx, objectKey, resource)
+	assert.True(t, errors.IsNotFound(err), "the resource found in the cluster should not be there")
 }

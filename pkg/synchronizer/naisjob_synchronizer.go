@@ -155,11 +155,9 @@ func (n *Synchronizer) PrepareNaisjob(naisjob *nais_io_v1.Naisjob) (*Rollout, er
 	}
 
 	// Assert that CNRM annotations are set on namespaces when CNRM support is enabled
-	if naisjob.Spec.GCP != nil && (naisjob.Spec.GCP.SqlInstances != nil || naisjob.Spec.GCP.Permissions != nil) {
+	if len(n.Config.GoogleProjectId) > 0 {
 		if val, ok := namespace.Annotations["cnrm.cloud.google.com/project-id"]; ok {
 			rollout.SetGoogleTeamProjectId(val)
-		} else {
-			return nil, fmt.Errorf("GCP resources requested, but no team project ID annotation set on namespace %s (not running on GCP?)", naisjob.GetNamespace())
 		}
 	}
 
