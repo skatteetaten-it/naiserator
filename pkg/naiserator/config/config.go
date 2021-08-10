@@ -94,6 +94,12 @@ type ServiceHosts struct {
 	Jwker      []string `json:"jwker"`
 }
 
+type Snorlax struct {
+	Enabled          bool   `json:"enabled"`
+	ServiceURL       string `json:"service-url"`
+	SnorlaxNamespace string `json:"namespace"`
+}
+
 type Config struct {
 	DryRun                            bool             `json:"dry-run"`
 	Bind                              string           `json:"bind"`
@@ -114,6 +120,7 @@ type Config struct {
 	HostAliases                       []HostAlias      `json:"host-aliases"`
 	GatewayMappings                   []GatewayMapping `json:"gateway-mappings"`
 	ServiceHosts                      ServiceHosts     `json:"service-hosts"`
+	Snorlax                           Snorlax          `json:"snorlax"`
 }
 
 const (
@@ -153,6 +160,9 @@ const (
 	ServiceHostsAzurerator              = "service-hosts.azurerator"
 	ServiceHostsDigdirator              = "service-hosts.digdirator"
 	ServiceHostsJwker                   = "service-hosts.jwker"
+	SnorlaxEnabled                      = "snorlax.enabled"
+	SnorlaxServiceURL                   = "snorlax.service-url"
+	SnorlaxNamespace                    = "snorlax.namespace"
 	SynchronizerRolloutCheckInterval    = "synchronizer.rollout-check-interval"
 	SynchronizerRolloutTimeout          = "synchronizer.rollout-timeout"
 	SynchronizerSynchronizationTimeout  = "synchronizer.synchronization-timeout"
@@ -237,6 +247,10 @@ func init() {
 	flag.String(KafkaTLSPrivateKeyPath, "", "Path to Kafka TLS private key.")
 	flag.String(KafkaTopic, "deploymentEvents", "Kafka topic for deployment status.")
 	flag.StringSlice(KafkaBrokers, []string{"localhost:9092"}, "Comma-separated list of Kafka brokers, HOST:PORT.")
+
+	flag.Bool(SnorlaxEnabled, false, "Set to true to enable snorlax in the cluster.")
+	flag.String(SnorlaxServiceURL, "snorlax.aura.svc.cluster.local", "Internal cluster URL to the snorlax service.")
+	flag.String(SnorlaxNamespace, "aura", "The namespace where Snorlax is running")
 }
 
 // Print out all configuration options except secret stuff.
@@ -260,7 +274,6 @@ func Print(redacted []string) {
 			log.Printf("%s: ***REDACTED***", key)
 		}
 	}
-
 }
 
 func decoderHook(dc *mapstructure.DecoderConfig) {

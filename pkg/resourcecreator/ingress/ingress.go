@@ -163,6 +163,7 @@ func nginxIngresses(source resource.Source, options resource.Options, naisIngres
 			if err != nil {
 				return nil, err
 			}
+
 			ingresses[*ingressClass] = ingress
 		}
 		ingress.Spec.Rules = append(ingress.Spec.Rules, rule)

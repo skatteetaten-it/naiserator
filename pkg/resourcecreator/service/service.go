@@ -35,3 +35,33 @@ func Create(source resource.Source, ast *resource.Ast, naisService nais_io_v1.Se
 
 	ast.AppendOperation(resource.OperationCreateOrUpdate, service)
 }
+
+func CreateExternal(source resource.Source, ast *resource.Ast, name, namespace, target string) {
+	service := &corev1.Service{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Service",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+			Labels: map[string]string{
+				"app": "nais.io/snorlax",
+			},
+		},
+		Spec: corev1.ServiceSpec{
+			Type:         corev1.ServiceTypeExternalName,
+			ExternalName: target,
+			Ports: []corev1.ServicePort{
+				{
+					Name:       "http",
+					Protocol:   corev1.ProtocolTCP,
+					Port:       80,
+					TargetPort: intstr.FromInt(80),
+				},
+			},
+		},
+	}
+
+	ast.AppendOperation(resource.OperationCreateIfNotExists, service)
+}

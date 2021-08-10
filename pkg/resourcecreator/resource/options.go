@@ -26,6 +26,7 @@ type Options struct {
 	NumReplicas                       int32
 	Proxy                             config.Proxy
 	Securelogs                        config.Securelogs
+	Snorlax                           config.Snorlax
 	VaultEnabled                      bool
 	Vault                             config.Vault
 }

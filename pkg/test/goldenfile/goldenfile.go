@@ -18,9 +18,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
-var (
-	defaultExclude = []string{".apiVersion", ".kind", ".metadata.name"}
-)
+var defaultExclude = []string{".apiVersion", ".kind", ".metadata.name"}
 
 type testCaseConfig struct {
 	Description string

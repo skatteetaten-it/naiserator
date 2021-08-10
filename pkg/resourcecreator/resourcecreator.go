@@ -46,6 +46,13 @@ func CreateApplication(app *nais_io_v1alpha1.Application, resourceOptions resour
 	ast := resource.NewAst()
 
 	service.Create(app, ast, *app.Spec.Service)
+	if resourceOptions.Snorlax.Enabled && app.Spec.Snorlax.Enabled() {
+		// If snorlax is set, ensure that it's created as an external name service
+		if app.GetNamespace() != resourceOptions.Snorlax.SnorlaxNamespace {
+			// Don't create it in the same namespace as snorlax itself.
+			service.CreateExternal(app, ast, "snorlax", app.GetNamespace(), resourceOptions.Snorlax.ServiceURL)
+		}
+	}
 	serviceaccount.Create(app, ast, resourceOptions)
 	horizontalpodautoscaler.Create(app, ast, *app.Spec.Replicas)
 	networkpolicy.Create(app, ast, resourceOptions, *app.Spec.AccessPolicy, app.Spec.Ingresses, app.Spec.LeaderElection)
