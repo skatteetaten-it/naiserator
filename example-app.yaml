@@ -1,0 +1,44 @@
+apiVersion: nais.io/v1alpha1
+kind: Application
+metadata:
+  labels:
+    team: leveranseteam
+  name: supernova
+  namespace: test
+spec:
+  image: ghcr.io/skatteetaten-trial/nebula/supernova:skyk-871-4a45cb0d-1629709668
+  port: 8080
+  service:
+    port: 8080
+    protocol: http
+  skipCaBundle: true
+  replicas:
+    cpuThresholdPercentage: 50
+    max: 2
+    min: 1
+  resources:
+    limits:
+      cpu: 500m
+      memory: 1Gi
+    requests:
+      cpu: 200m
+      memory: 512Mi
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  labels:
+    app: supernova
+  name: supernova-test.istio.nebula.dev.skatteetaten.io
+  namespace: test
+spec:
+  gateways:
+  - istio-system/istio-ingress-gateway
+  hosts:
+  - supernova-test.istio.nebula.dev.skatteetaten.io
+  http:
+  - route:
+    - destination:
+        host: supernova.test.svc.cluster.local
+        port:
+          number: 8080

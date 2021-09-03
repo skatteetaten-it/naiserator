@@ -19,7 +19,9 @@ func Create(source resource.Source, ast *resource.Ast, options resource.Options)
 			APIVersion: "v1",
 		},
 		ObjectMeta: objectMeta,
-	}
+		ImagePullSecrets: []corev1.LocalObjectReference{{
+			Name: "ghcr-secret",
+		}},	}
 
 	ast.AppendOperation(resource.OperationCreateIfNotExists, serviceAccount)
 }
