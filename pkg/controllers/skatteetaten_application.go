@@ -4,10 +4,12 @@ import (
 	skatteetaten_no_v1alpha1 "github.com/nais/liberator/pkg/apis/nebula.skatteetaten.no/v1alpha1"
 	"github.com/nais/naiserator/pkg/synchronizer"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 type SkatteetatenApplicationReconciler struct {
 	synchronizer.Synchronizer
+	reconcile.Reconciler
 }
 
 func NewSkatteetatenAppReconciler(synchronizer synchronizer.Synchronizer) *SkatteetatenApplicationReconciler {
@@ -25,5 +27,5 @@ func (r *SkatteetatenApplicationReconciler) Reconcile(req ctrl.Request) (ctrl.Re
 func (r *SkatteetatenApplicationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&skatteetaten_no_v1alpha1.Application{}).
-		Complete(r)
+		Complete(r.Reconciler)
 }

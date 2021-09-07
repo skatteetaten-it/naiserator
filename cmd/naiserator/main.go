@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/tls"
 	"fmt"
 	"os"
@@ -120,7 +121,8 @@ func run() error {
 		}
 	}
 
-	stopCh := StopCh()
+	//stopCh := StopCh()
+
 
 	resourceOptions := resource.NewOptions()
 	resourceOptions.AccessPolicyNotAllowedCIDRs = cfg.Features.AccessPolicyNotAllowedCIDRs
@@ -201,7 +203,7 @@ func run() error {
 	if err = skatteetatenApplicationReconciler.SetupWithManager(mgr); err != nil {
 		return err
 	}
-	return mgr.Start(stopCh)
+	return mgr.Start(context.Background())
 }
 
 func StopCh() (stopCh <-chan struct{}) {

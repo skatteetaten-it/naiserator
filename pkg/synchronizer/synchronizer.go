@@ -193,9 +193,9 @@ func (n *Synchronizer) ReconcileApplication(req ctrl.Request) (ctrl.Result, erro
 }
 
 // Unreferenced return all resources in cluster which was created by synchronizer previously, but is not included in the current rollout.
-func (n *Synchronizer) Unreferenced(ctx context.Context, rollout Rollout) ([]runtime.Object, error) {
+func (n *Synchronizer) Unreferenced(ctx context.Context, rollout Rollout) ([]client.Object, error) {
 	// Return true if a cluster resource also is applied with the rollout.
-	intersects := func(existing runtime.Object) bool {
+	intersects := func(existing client.Object) bool {
 		existingMeta, err := meta.Accessor(existing)
 		if err != nil {
 			log.Errorf("BUG: unable to determine TypeMeta for existing resource: %s", err)
@@ -223,12 +223,13 @@ func (n *Synchronizer) Unreferenced(ctx context.Context, rollout Rollout) ([]run
 	if len(n.ResourceOptions.GoogleProjectId) > 0 {
 		listers = append(listers, naiserator_scheme.GCPListers()...)
 	}
-	resources, err := updater.FindAll(ctx, n, n.Scheme, listers, rollout.Source)
+
+	resources, err := updater.FindAll(ctx, n.Client, n.Scheme, listers, rollout.Source)
 	if err != nil {
 		return nil, fmt.Errorf("discovering unreferenced resources: %s", err)
 	}
 
-	unreferenced := make([]runtime.Object, 0, len(resources))
+	unreferenced := make([]client.Object, 0, len(resources))
 	for _, existing := range resources {
 		if !intersects(existing) {
 			unreferenced = append(unreferenced, existing)
@@ -347,13 +348,13 @@ func (n *Synchronizer) ClusterOperations(ctx context.Context, rollout Rollout) [
 	for _, rop := range rollout.ResourceOperations {
 		switch rop.Operation {
 		case resource.OperationCreateOrUpdate:
-			fn = updater.CreateOrUpdate(ctx, n, n.Scheme, rop.Resource)
+			fn = updater.CreateOrUpdate(ctx, n.Client, n.Scheme, rop.Resource)
 		case resource.OperationCreateOrRecreate:
-			fn = updater.CreateOrRecreate(ctx, n, rop.Resource)
+			fn = updater.CreateOrRecreate(ctx, n.Client, rop.Resource)
 		case resource.OperationCreateIfNotExists:
-			fn = updater.CreateIfNotExists(ctx, n, rop.Resource)
+			fn = updater.CreateIfNotExists(ctx, n.Client, rop.Resource)
 		case resource.OperationDeleteIfExists:
-			fn = updater.DeleteIfExists(ctx, n, rop.Resource)
+			fn = updater.DeleteIfExists(ctx, n.Client, rop.Resource)
 		default:
 			return []func() error{
 				func() error {
@@ -373,7 +374,7 @@ func (n *Synchronizer) ClusterOperations(ctx context.Context, rollout Rollout) [
 		})
 	} else {
 		for _, rsrc := range unreferenced {
-			deletes = append(deletes, updater.DeleteIfExists(ctx, n, rsrc))
+			deletes = append(deletes, updater.DeleteIfExists(ctx, n.Client, rsrc))
 		}
 	}
 

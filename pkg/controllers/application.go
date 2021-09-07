@@ -4,10 +4,12 @@ import (
 	nais_io_v1alpha1 "github.com/nais/liberator/pkg/apis/nais.io/v1alpha1"
 	"github.com/nais/naiserator/pkg/synchronizer"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 type ApplicationReconciler struct {
 	synchronizer.Synchronizer
+	reconcile.Reconciler
 }
 
 func NewAppReconciler(synchronizer synchronizer.Synchronizer) *ApplicationReconciler {
@@ -25,5 +27,5 @@ func (r *ApplicationReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error)
 func (r *ApplicationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&nais_io_v1alpha1.Application{}).
-		Complete(r)
+		Complete(r.Reconciler)
 }

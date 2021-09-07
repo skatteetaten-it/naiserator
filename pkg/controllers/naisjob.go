@@ -4,11 +4,13 @@ import (
 	nais_io_v1 "github.com/nais/liberator/pkg/apis/nais.io/v1"
 	"github.com/nais/naiserator/pkg/synchronizer"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 // NaisjobReconciler reconciles a Naisjob object
 type NaisjobReconciler struct {
 	synchronizer.Synchronizer
+	reconcile.Reconciler
 }
 
 func NewNaisjobReconciler(synchronizer synchronizer.Synchronizer) *NaisjobReconciler {
@@ -26,5 +28,5 @@ func (r *NaisjobReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 func (r *NaisjobReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&nais_io_v1.Naisjob{}).
-		Complete(r)
+		Complete(r.Reconciler)
 }
