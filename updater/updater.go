@@ -109,7 +109,7 @@ func FindAll(ctx context.Context, cli client.Client, scheme *runtime.Scheme, typ
 		}
 
 		_ = meta.EachListItem(obj, func(item runtime.Object) error {
-			resources = append(resources, item)
+			//resources = append(resources, item)
 			return nil
 		})
 	}
