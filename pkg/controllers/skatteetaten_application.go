@@ -21,7 +21,7 @@ func NewSkatteetatenAppReconciler(synchronizer synchronizer.Synchronizer) *Skatt
 // +kubebuilder:rbac:groups=*,resources=events,verbs=get;list;watch;create;update
 
 func (r *SkatteetatenApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	return r.Synchronizer.ReconcileApplication(req)
+	return r.Synchronizer.ReconcileSkatteetatenApplication(req)
 }
 
 func (r *SkatteetatenApplicationReconciler) SetupWithManager(mgr ctrl.Manager) error {

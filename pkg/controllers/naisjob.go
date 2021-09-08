@@ -1,10 +1,11 @@
 package controllers
 
 import (
+	"context"
+
 	nais_io_v1 "github.com/nais/liberator/pkg/apis/nais.io/v1"
 	"github.com/nais/naiserator/pkg/synchronizer"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 // NaisjobReconciler reconciles a Naisjob object
