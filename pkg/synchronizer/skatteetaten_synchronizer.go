@@ -202,11 +202,12 @@ func (n *Synchronizer) UpdateSkatteetatenApplication(ctx context.Context, source
 
 func CreateSkatteetatenApplication(app *skatteetaten_no_v1alpha1.Application, resourceOptions resource.Options) (resource.Operations, error) {
 
+	//TODO: handle update correctly where apropriate
 	ast := resource.NewAst()
 
 	// Service
 	svc := generator.GenerateService(*app)
-	ast.AppendOperation(resource.OperationCreateOrUpdate, svc)
+	ast.AppendOperation(resource.OperationCreateIfNotExists, svc)
 
 	// ServiceAccount
 	sa := generator.GenerateServiceAccount(*app)
@@ -218,23 +219,24 @@ func CreateSkatteetatenApplication(app *skatteetaten_no_v1alpha1.Application, re
 		ast.AppendOperation(resource.OperationCreateOrUpdate, hpa)
 	}
 
+	/*
 	if ! app.Spec.UnsecureDebugDisableAllAccessPolicies {
 		// NetworkPolicy
 		np := generator.GenerateNetworkPolicy(*app, app.Spec)
-		ast.AppendOperation(resource.OperationCreateOrUpdate, np)
+		ast.AppendOperation(resource.OperationCreateIfNotExists, np)
 
 		// AuthorizationPolicy
 		ap := generator.GenerateAuthorizationPolicy(*app, app.Spec)
-		ast.AppendOperation(resource.OperationCreateOrUpdate, ap)
+		ast.AppendOperation(resource.OperationCreateIfNotExists, ap)
 	}
 
 	// ServiceEntry
 	if app.Spec.Egress != nil && app.Spec.Egress.External != nil {
 		for _, egress := range app.Spec.Egress.External {
 			se := generator.GenerateServiceEntry(*app, egress)
-			ast.AppendOperation(resource.OperationCreateOrUpdate, se)
+			ast.AppendOperation(resource.OperationCreateIfNotExists, se)
 		}
-	}
+	}*/
 
 	// VirtualService
 	if app.Spec.Ingress != nil && app.Spec.Ingress.Public != nil {
@@ -243,13 +245,13 @@ func CreateSkatteetatenApplication(app *skatteetaten_no_v1alpha1.Application, re
 				continue
 			}
 			vs := generator.GenerateVirtualService(*app, ingress)
-			ast.AppendOperation(resource.OperationCreateOrUpdate, vs)
+			ast.AppendOperation(resource.OperationCreateIfNotExists, vs)
 		}
 	}
 
 	// PodDisruptionBudget
 	poddisruptionbudget := generator.GeneratePodDisruptionBudget(*app)
-	ast.AppendOperation(resource.OperationCreateOrUpdate, poddisruptionbudget)
+	ast.AppendOperation(resource.OperationCreateIfNotExists, poddisruptionbudget)
 
 	// ImagePolicy
 	// SKATT: Denne er i et annet ns så kan ikke ha owner reference, hvordan får vi slettet ting da?
@@ -257,7 +259,7 @@ func CreateSkatteetatenApplication(app *skatteetaten_no_v1alpha1.Application, re
 	if err != nil {
 		return nil, err
 	}
-	ast.AppendOperation(resource.OperationCreateOrUpdate, imagePolicy)
+	ast.AppendOperation(resource.OperationCreateIfNotExists, imagePolicy)
 
 	// Azure
 	var dbVars []corev1.EnvVar

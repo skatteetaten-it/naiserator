@@ -8,6 +8,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+//TODO: error when updating
 func GenerateImagePolicy(application skatteetaten_no_v1alpha1.Application) (*fluxcd_io_image_reflector_v1beta1.ImagePolicy, error) {
 
 	imagePolicyConfiguration := application.Spec.ImagePolicy
