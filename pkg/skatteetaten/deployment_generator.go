@@ -2,6 +2,7 @@ package generator
 
 import (
 	skatteetaten_no_v1alpha1 "github.com/nais/liberator/pkg/apis/nebula.skatteetaten.no/v1alpha1"
+	"github.com/nais/naiserator/pkg/resourcecreator/resource"
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -59,7 +60,7 @@ func GenerateDeployment(application skatteetaten_no_v1alpha1.Application, dbVars
 			APIVersion: "apps/v1",
 			Kind:       "Deployment",
 		},
-		ObjectMeta: application.StandardObjectMeta(),
+		ObjectMeta: resource.CreateObjectMeta(application),
 		Spec: v1.DeploymentSpec{
 			Strategy: v1.DeploymentStrategy{
 				Type: "Recreate",
