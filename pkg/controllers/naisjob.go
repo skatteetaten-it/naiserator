@@ -10,7 +10,6 @@ import (
 // NaisjobReconciler reconciles a Naisjob object
 type NaisjobReconciler struct {
 	synchronizer.Synchronizer
-	reconcile.Reconciler
 }
 
 func NewNaisjobReconciler(synchronizer synchronizer.Synchronizer) *NaisjobReconciler {
@@ -21,12 +20,12 @@ func NewNaisjobReconciler(synchronizer synchronizer.Synchronizer) *NaisjobReconc
 // +kubebuilder:rbac:groups=nais.io,resources=Naisjobs/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=*,resources=events,verbs=get;list;watch;create;update
 
-func (r *NaisjobReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
+func (r *NaisjobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	return r.Synchronizer.ReconcileNaisjob(req)
 }
 
 func (r *NaisjobReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&nais_io_v1.Naisjob{}).
-		Complete(r.Reconciler)
+		Complete(r)
 }
