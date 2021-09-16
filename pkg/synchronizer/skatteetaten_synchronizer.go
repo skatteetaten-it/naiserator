@@ -15,7 +15,7 @@ import (
 	"github.com/nais/naiserator/pkg/resourcecreator/serviceaccount"
 	generator "github.com/nais/naiserator/pkg/skatteetaten_generator"
 	"github.com/nais/naiserator/pkg/skatteetaten_generator/authorization_policy"
-	skatteetaten_generator "github.com/nais/naiserator/pkg/skatteetaten_generator/deployment_generator"
+	"github.com/nais/naiserator/pkg/skatteetaten_generator/deployment_generator"
 	"github.com/nais/naiserator/pkg/skatteetaten_generator/image_policy"
 	"github.com/nais/naiserator/pkg/skatteetaten_generator/network_policy"
 	"github.com/nais/naiserator/pkg/skatteetaten_generator/postgres_env"
@@ -271,8 +271,7 @@ func CreateSkatteetatenApplication(app *skatteetaten_no_v1alpha1.Application, re
 	}
 
 	// Deployment
-	deployment := skatteetaten_generator.GenerateDeployment(*app, dbVars)
-	ast.AppendOperation(resource.OperationCreateOrUpdate, deployment)
+	deployment_generator.Create(app, ast, app.Spec, dbVars)
 
 
 	return ast.Operations, nil
