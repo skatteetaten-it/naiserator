@@ -139,9 +139,9 @@ func (n *Synchronizer) PrepareSkatteetatenApplikasjon(app *skatteetaten_no_v1alp
 		ResourceOptions: n.ResourceOptions,
 	}
 
-	 if err = app.ApplyDefaults(); err != nil {
+	  if err = app.ApplyDefaults(); err != nil {
 		return nil, fmt.Errorf("BUG: merge default values into application: %s", err)
-	 }
+	  }
 
 	rollout.SynchronizationHash, err = app.Hash()
 	if err != nil {
