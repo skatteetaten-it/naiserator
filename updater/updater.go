@@ -88,7 +88,7 @@ func DeleteIfExists(ctx context.Context, cli client.Client, resource client.Obje
 }
 
 // Find all Kubernetes resource matching label selector 'app=NAME' for all specified types
-func FindAll(ctx context.Context, cli client.Client, scheme *runtime.Scheme, types []client.ObjectList, source resource.Source) ([]client.Object, error) {
+func FindAll(ctx context.Context, cli client.Client, scheme *runtime.Scheme, types []client.ObjectList, source resource.Source) ([]runtime.Object, error) {
 	// Set up label selector 'app=NAME'
 	labelSelector := labels.NewSelector()
 	labelreq, err := labels.NewRequirement("app", selection.Equals, []string{source.GetName()})
@@ -100,7 +100,7 @@ func FindAll(ctx context.Context, cli client.Client, scheme *runtime.Scheme, typ
 		LabelSelector: labelSelector,
 	}
 
-	resources := make([]client.Object, 0)
+	resources := make([]runtime.Object, 0)
 
 	for _, obj := range types {
 		err = cli.List(ctx, obj, listopt)
@@ -109,7 +109,7 @@ func FindAll(ctx context.Context, cli client.Client, scheme *runtime.Scheme, typ
 		}
 
 		_ = meta.EachListItem(obj, func(item runtime.Object) error {
-			//resources = append(resources, item)
+			resources = append(resources, item)
 			return nil
 		})
 	}
@@ -178,8 +178,8 @@ func CopyImmutable(src, dst runtime.Object) error {
 	return nil
 }
 
-func withOwnerReference(source resource.Source, resources []client.Object) []client.Object {
-	owned := make([]client.Object, 0, len(resources))
+func withOwnerReference(source resource.Source, resources []runtime.Object) []runtime.Object {
+	owned := make([]runtime.Object, 0, len(resources))
 
 	hasOwnerReference := func(r runtime.Object) (bool, error) {
 		m, err := meta.Accessor(r)
