@@ -23,6 +23,7 @@ func Create(app Source, ast *resource.Ast) {
 	pgd := app.GetPostgresDatabases()
 	resourceGroup := app.GetAzureResourceGroup()
 	// TODO handle updating
+	serverNames := map[string]skatteetaten_no_v1alpha1.ExternalEgressConfig {}
 	for dbIndex, db := range pgd {
 		generatePostgresDatabase(app, ast, resourceGroup, *db)
 		for userIndex, user := range db.Users {
@@ -33,6 +34,22 @@ func Create(app Source, ast *resource.Ast) {
 			}
 			generatePostgresUser(app, ast, resourceGroup, *db, *user)
 		}
+
+		_, ok := serverNames[db.Server]
+		if !ok {
+			serverNames[db.Server] =skatteetaten_no_v1alpha1.ExternalEgressConfig{
+				Host:  fmt.Sprintf("%s.database.azure.com", generateDatabaseServerName(app, db.Server)),
+				Ports: []skatteetaten_no_v1alpha1.PortConfig{{
+					Name:     "postgres",
+					Port:     5432,
+					Protocol: "TCP",
+				}},
+			}
+		}
+	}
+
+	for name, config := range serverNames {
+		service_entry.GenerateServiceEntry(app, ast, name, config)
 	}
 }
 
@@ -48,21 +65,15 @@ func generatePostgresDatabase(source resource.Source, ast *resource.Ast, rg stri
 		ObjectMeta: objectMeta,
 		Spec: azure_microsoft_com_v1alpha1.PostgreSQLDatabaseSpec{
 			ResourceGroup: rg,
-			Server:        fmt.Sprintf("pgs-%s-%s", source.GetNamespace(), database.Server),
+			Server:        generateDatabaseServerName(source, database.Server),
 		},
 	}
 	ast.AppendOperation(resource.OperationCreateIfNotExists, db)
-	egressConfig := skatteetaten_no_v1alpha1.ExternalEgressConfig{
-		Host:  fmt.Sprintf("%s.database.azure.com", db.Spec.Server),
-		Ports: []skatteetaten_no_v1alpha1.PortConfig{{
-			Name:     "postgres",
-			Port:     5432,
-			Protocol: "TCP",
-		}},
-	}
-	service_entry.GenerateServiceEntry(source, ast, database.Name, egressConfig)
 
+}
 
+func generateDatabaseServerName(source resource.Source, server string) string {
+	return fmt.Sprintf("pgs-%s-%s", source.GetNamespace(), server)
 }
 
 func generatePostgresUser(source resource.Source, ast *resource.Ast, rg string, database skatteetaten_no_v1alpha1.PostgreDatabaseConfig, user skatteetaten_no_v1alpha1.PostgreDatabaseUser) {
