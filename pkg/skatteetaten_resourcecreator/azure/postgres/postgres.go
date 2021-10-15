@@ -6,6 +6,7 @@ import (
 	azure_microsoft_com_v1alpha1 "github.com/nais/liberator/pkg/apis/azure.microsoft.com/v1alpha1"
 	skatteetaten_no_v1alpha1 "github.com/nais/liberator/pkg/apis/nebula.skatteetaten.no/v1alpha1"
 	"github.com/nais/naiserator/pkg/resourcecreator/resource"
+	"github.com/nais/naiserator/pkg/skatteetaten_resourcecreator/istio/service_entry"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -51,6 +52,16 @@ func generatePostgresDatabase(source resource.Source, ast *resource.Ast, rg stri
 		},
 	}
 	ast.AppendOperation(resource.OperationCreateIfNotExists, db)
+	egressConfig := skatteetaten_no_v1alpha1.ExternalEgressConfig{
+		Host:  fmt.Sprintf("%s.database.azure.com", db.Spec.Server),
+		Ports: []skatteetaten_no_v1alpha1.PortConfig{{
+			Name:     "postgres",
+			Port:     5432,
+			Protocol: "TCP",
+		}},
+	}
+	service_entry.GenerateServiceEntry(source, ast, database.Name, egressConfig)
+
 
 }
 

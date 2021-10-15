@@ -48,7 +48,7 @@ tests:
     name: mynamespace-myapplication-postgres
     match:
       - type: exact
-        name: "ServiceEntry for ghcr"
+        name: "ServiceEntry for postgres"
         exclude:
           - .status
           - .metadata
