@@ -122,6 +122,12 @@ type Config struct {
 	GatewayMappings                   []GatewayMapping `json:"gateway-mappings"`
 	ServiceHosts                      ServiceHosts     `json:"service-hosts"`
 	Wonderwall                        Wonderwall       `json:"wonderwall"`
+	Azure                             Azure            `json:"azure"`
+}
+
+type Azure struct {
+	SubscriptionName   string  `json:"subscription-name"`
+	SubscriptionId     string  `json:"subscription-id"`
 }
 
 const (
@@ -172,6 +178,8 @@ const (
 	VaultInitContainerImage             = "vault.init-container-image"
 	VaultKvPath                         = "vault.kv-path"
 	WonderwallImage                     = "wonderwall.image"
+	AzureSubscriptionName               = "azure.subscription-name"
+	AzureSubscriptionId                 = "azure.subscription-id"
 )
 
 func bindNAIS() {
@@ -275,6 +283,9 @@ func init() {
 	flag.String(KafkaTLSPrivateKeyPath, "", "Path to Kafka TLS private key.")
 	flag.String(KafkaTopic, "deploymentEvents", "Kafka topic for deployment status.")
 	flag.StringSlice(KafkaBrokers, []string{"localhost:9092"}, "Comma-separated list of Kafka brokers, HOST:PORT.")
+
+	flag.String(AzureSubscriptionName, "", "Name of subscription")
+	flag.String(AzureSubscriptionId, "", "UUID of subscription")
 }
 
 // Print out all configuration options except secret stuff.
