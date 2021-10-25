@@ -7,6 +7,7 @@ import (
 	azure_microsoft_com_v1alpha1 "github.com/nais/liberator/pkg/apis/azure.microsoft.com/v1alpha1"
 	skatteetaten_no_v1alpha1 "github.com/nais/liberator/pkg/apis/nebula.skatteetaten.no/v1alpha1"
 	"github.com/nais/naiserator/pkg/resourcecreator/resource"
+	"github.com/nais/naiserator/pkg/skatteetaten_resourcecreator/istio/service_entry"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/pointer"
@@ -25,6 +26,8 @@ func Create(app Source, ast *resource.Ast) {
 		generateStorageAccount(app, ast, resourceGroup, sg)
 	}
 }
+
+//      "blob": "https://sgsupernovautv.blob.core.windows.net/",
 
 func generateStorageAccount(source resource.Source, ast *resource.Ast, rg string, sg *skatteetaten_no_v1alpha1.StorageAccountConfig) {
 	objectMeta := resource.CreateObjectMeta(source)
@@ -59,6 +62,17 @@ func generateStorageAccount(source resource.Source, ast *resource.Ast, rg string
 	ast.AppendOperation(resource.OperationCreateIfNotExists, object)
 	envVar := createConnectionStringEnvVar(objectMeta, sg)
 	ast.Env = append(ast.Env, envVar)
+
+	config :=skatteetaten_no_v1alpha1.ExternalEgressConfig{
+		Host:  fmt.Sprintf("%s.blob.core.windows.net", objectMeta.Name),
+		Ports: []skatteetaten_no_v1alpha1.PortConfig{{
+			Name:     "https",
+			Port:     443,
+			Protocol: "TCP",
+		}}}
+	seName:= fmt.Sprintf("sg-%s", sg.Name)
+	service_entry.GenerateServiceEntry(source, ast, seName, config)
+
 }
 
 func createConnectionStringEnvVar(objectMeta metav1.ObjectMeta, sg *skatteetaten_no_v1alpha1.StorageAccountConfig) corev1.EnvVar {

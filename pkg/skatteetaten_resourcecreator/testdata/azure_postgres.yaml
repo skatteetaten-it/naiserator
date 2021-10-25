@@ -116,7 +116,7 @@ tests:
   - operation: CreateOrUpdate
     apiVersion: networking.istio.io/v1alpha3
     kind: ServiceEntry
-    name: mynamespace-myapplication-myserver
+    name: mynamespace-myapplication-pgs-myserver
     match:
       - type: exact
         name: "ServiceEntry for postgres"

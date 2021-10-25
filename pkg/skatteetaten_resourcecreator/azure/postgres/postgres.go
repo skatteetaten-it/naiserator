@@ -49,7 +49,7 @@ func Create(app Source, ast *resource.Ast) {
 	}
 
 	for name, config := range serverNames {
-		service_entry.GenerateServiceEntry(app, ast, name, config)
+		service_entry.GenerateServiceEntry(app, ast, fmt.Sprintf("pgs-%s", name), config)
 	}
 }
 
