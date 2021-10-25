@@ -9,6 +9,7 @@ import (
 
 	nais_io_v1 "github.com/nais/liberator/pkg/apis/nais.io/v1"
 	nais_io_v1alpha1 "github.com/nais/liberator/pkg/apis/nais.io/v1alpha1"
+
 	"github.com/nais/naiserator/pkg/resourcecreator/aiven"
 	"github.com/nais/naiserator/pkg/resourcecreator/azure"
 	"github.com/nais/naiserator/pkg/resourcecreator/batch"
@@ -31,6 +32,7 @@ import (
 	"github.com/nais/naiserator/pkg/resourcecreator/service"
 	"github.com/nais/naiserator/pkg/resourcecreator/serviceaccount"
 	"github.com/nais/naiserator/pkg/resourcecreator/vault"
+	"github.com/nais/naiserator/pkg/resourcecreator/wonderwall"
 )
 
 type Generator func(app resource.Source, resourceOptions resource.Options) (resource.Operations, error)
@@ -38,6 +40,8 @@ type Generator func(app resource.Source, resourceOptions resource.Options) (reso
 // CreateApplication takes an Application resource and returns a slice of Kubernetes resources
 // along with information about what to do with these resources.
 func CreateApplication(source resource.Source, resourceOptions resource.Options) (resource.Operations, error) {
+	var err error
+
 	app, ok := source.(*nais_io_v1alpha1.Application)
 	if !ok {
 		return nil, fmt.Errorf("BUG: CreateApplication only accepts nais_io_v1alpha1.Application objects, fix your caller")
@@ -53,8 +57,9 @@ func CreateApplication(source resource.Source, resourceOptions resource.Options)
 		return nil, fmt.Errorf("GCP resources requested, but no team project ID annotation set on namespace %s (not running on GCP?)", app.GetNamespace())
 	}
 
-	if resourceOptions.DigdiratorEnabled && app.Spec.IDPorten != nil && app.Spec.IDPorten.Enabled && app.Spec.IDPorten.Sidecar != nil && app.Spec.IDPorten.Sidecar.Enabled {
-		resourceOptions.WonderwallEnabled = true
+	resourceOptions.WonderwallEnabled, err = wonderwall.ShouldEnable(app, resourceOptions)
+	if err != nil {
+		return nil, err
 	}
 
 	ast := resource.NewAst()
@@ -67,12 +72,12 @@ func CreateApplication(source resource.Source, resourceOptions resource.Options)
 	}
 
 	networkpolicy.Create(app, ast, resourceOptions, *app.Spec.AccessPolicy, app.Spec.Ingresses, app.Spec.LeaderElection)
-	err := ingress.Create(app, ast, resourceOptions, app.Spec.Ingresses, app.Spec.Liveness.Path, app.Spec.Service.Protocol, app.Annotations)
+	err = ingress.Create(app, ast, resourceOptions, app.Spec.Ingresses, app.Spec.Liveness.Path, app.Spec.Service.Protocol, app.Annotations)
 	if err != nil {
 		return nil, err
 	}
 	leaderelection.Create(app, ast, app.Spec.LeaderElection)
-	err = azure.Create(app, ast, resourceOptions, *app.Spec.Azure, app.Spec.Ingresses, *app.Spec.AccessPolicy)
+	err = azure.Create(app, ast, resourceOptions)
 	if err != nil {
 		return nil, err
 	}
@@ -144,7 +149,7 @@ func CreateNaisjob(source resource.Source, resourceOptions resource.Options) (re
 
 	serviceaccount.Create(naisjob, ast, resourceOptions)
 	networkpolicy.Create(naisjob, ast, resourceOptions, *naisjob.Spec.AccessPolicy, []nais_io_v1.Ingress{}, false)
-	err := azure.Create(naisjob, ast, resourceOptions, *naisjob.Spec.Azure, []nais_io_v1.Ingress{}, *naisjob.Spec.AccessPolicy)
+	err := azure.Create(naisjob, ast, resourceOptions)
 	if err != nil {
 		return nil, err
 	}
