@@ -7,6 +7,7 @@ import (
 	azure_microsoft_com_v1alpha1 "github.com/nais/liberator/pkg/apis/azure.microsoft.com/v1alpha1"
 	skatteetaten_no_v1alpha1 "github.com/nais/liberator/pkg/apis/nebula.skatteetaten.no/v1alpha1"
 	"github.com/nais/naiserator/pkg/resourcecreator/resource"
+	"github.com/nais/naiserator/pkg/skatteetaten_resourcecreator/istio/service_entry"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/pointer"
@@ -64,7 +65,18 @@ func generateCosmosDb(source resource.Source, ast *resource.Ast, rg string, db *
 	ast.AppendOperation(resource.OperationCreateIfNotExists, object)
 	envVar := createConnectionStringEnvVar(objectMeta, db, single)
 	ast.Env = append(ast.Env, envVar...)
+
+	config :=skatteetaten_no_v1alpha1.ExternalEgressConfig{
+		Host:  fmt.Sprintf("%s.mongo.cosmos.azure.com", objectMeta.Name),
+		Ports: []skatteetaten_no_v1alpha1.PortConfig{{
+			Name:     "mongodb",
+			Port:     10255,
+			Protocol: "TCP",
+		}}}
+	seName:= fmt.Sprintf("cod-%s", db.Name)
+	service_entry.GenerateServiceEntry(source, ast, seName, config)
 }
+
 
 func createConnectionStringEnvVar(objectMeta metav1.ObjectMeta, db *skatteetaten_no_v1alpha1.CosmosDBConfig, single bool) []corev1.EnvVar {
 	secretName := fmt.Sprintf("cosmosdb-%s", objectMeta.Name)
@@ -82,7 +94,7 @@ func createConnectionStringEnvVar(objectMeta metav1.ObjectMeta, db *skatteetaten
 					LocalObjectReference: corev1.LocalObjectReference{
 						Name: secretName,
 					},
-					Key: "connectionString0",
+					Key: "PrimaryMongoDBConnectionString",
 				},
 			},
 		}
@@ -96,7 +108,8 @@ func createConnectionStringEnvVar(objectMeta metav1.ObjectMeta, db *skatteetaten
 				LocalObjectReference: corev1.LocalObjectReference{
 					Name: secretName,
 				},
-				Key: "connectionString0",
+				Key: "PrimaryMongoDBConnectionString",
+				//TODO: not sure what to do if this is not mongodb?
 			},
 		},
 	}

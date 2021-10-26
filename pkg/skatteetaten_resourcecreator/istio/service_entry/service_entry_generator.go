@@ -20,12 +20,12 @@ func Create(app Source, ast *resource.Ast) {
 	// ServiceEntry
 	if egressConfig != nil && egressConfig.External != nil {
 		for key, egress := range egressConfig.External {
-			generateServiceEntry(app, ast, key, egress)
+			GenerateServiceEntry(app, ast, key, egress)
 		}
 	}
 }
 
-func generateServiceEntry(source resource.Source, ast *resource.Ast, key string, config skatteetaten_no_v1alpha1.ExternalEgressConfig){
+func GenerateServiceEntry(source resource.Source, ast *resource.Ast, key string, config skatteetaten_no_v1alpha1.ExternalEgressConfig){
 
 	serviceentry := networking_istio_io_v1alpha3.ServiceEntry{
 		TypeMeta: metav1.TypeMeta{

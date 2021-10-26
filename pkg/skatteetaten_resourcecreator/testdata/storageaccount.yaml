@@ -78,3 +78,24 @@ tests:
             kind: StorageV2
             accessTier: Hot
             supportsHttpsTrafficOnly: true
+
+  - operation: CreateOrUpdate
+    apiVersion: networking.istio.io/v1alpha3
+    kind: ServiceEntry
+    name: mynamespace-myapplication-sg-test
+    match:
+      - type: exact
+        name: "ServiceEntry for storagegrid"
+        exclude:
+          - .status
+          - .metadata
+        resource:
+          spec:
+            hosts:
+              - sgmynamespacemyapplicationtest.blob.core.windows.net
+            location: MESH_EXTERNAL
+            ports:
+              - name: https
+                number: 443
+                protocol: TCP
+            resolution: DNS

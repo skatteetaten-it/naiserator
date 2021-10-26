@@ -113,6 +113,26 @@ tests:
             resourceGroup: rg-test
             server: pgs-mynamespace-myserver
 
+  - operation: CreateOrUpdate
+    apiVersion: networking.istio.io/v1alpha3
+    kind: ServiceEntry
+    name: mynamespace-myapplication-pgs-myserver
+    match:
+      - type: exact
+        name: "ServiceEntry for postgres"
+        exclude:
+          - .status
+          - .metadata
+        resource:
+          spec:
+            hosts:
+              - pgs-mynamespace-myserver.database.azure.com
+            location: MESH_EXTERNAL
+            ports:
+              - name: postgres
+                number: 5432
+                protocol: TCP
+            resolution: DNS
 
 
 

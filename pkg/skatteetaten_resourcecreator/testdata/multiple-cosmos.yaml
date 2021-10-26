@@ -57,7 +57,7 @@ tests:
                       - name: SPRING_DATA_MONGODB_TEST_URI
                         valueFrom:
                           secretKeyRef:
-                            key: connectionString0
+                            key: PrimaryMongoDBConnectionString
                             name: cosmosdb-cod-mynamespace-myapplication-test
 
   - operation: CreateOrUpdate
@@ -76,7 +76,7 @@ tests:
                       - name: COSMOSDB_TEST2_URI
                         valueFrom:
                           secretKeyRef:
-                            key: connectionString0
+                            key: PrimaryMongoDBConnectionString
                             name: cosmosdb-cod-mynamespace-myapplication-test2
 
 
@@ -122,3 +122,45 @@ tests:
             resourceGroup: rg-test
             properties:
               databaseAccountOfferType: "Standard"
+
+  - operation: CreateOrUpdate
+    apiVersion: networking.istio.io/v1alpha3
+    kind: ServiceEntry
+    name: mynamespace-myapplication-cod-test
+    match:
+      - type: exact
+        name: "ServiceEntry for mongodb"
+        exclude:
+          - .status
+          - .metadata
+        resource:
+          spec:
+            hosts:
+              - cod-mynamespace-myapplication-test.mongo.cosmos.azure.com
+            location: MESH_EXTERNAL
+            ports:
+              - name: mongodb
+                number: 10255
+                protocol: TCP
+            resolution: DNS
+
+  - operation: CreateOrUpdate
+    apiVersion: networking.istio.io/v1alpha3
+    kind: ServiceEntry
+    name: mynamespace-myapplication-cod-test2
+    match:
+      - type: exact
+        name: "ServiceEntry for mongodb2"
+        exclude:
+          - .status
+          - .metadata
+        resource:
+          spec:
+            hosts:
+              - cod-mynamespace-myapplication-test2.mongo.cosmos.azure.com
+            location: MESH_EXTERNAL
+            ports:
+              - name: mongodb
+                number: 10255
+                protocol: TCP
+            resolution: DNS
