@@ -40,7 +40,10 @@ tests:
             hosts:
             - ghcr.io
             location: MESH_EXTERNAL
-            ports: []
+            ports:
+              - name: https
+                number: 443
+                protocol: HTTPS
             resolution: DNS
   - operation: CreateOrUpdate
     apiVersion: networking.istio.io/v1alpha3
