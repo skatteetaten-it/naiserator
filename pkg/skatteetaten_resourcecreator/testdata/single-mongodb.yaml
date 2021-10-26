@@ -54,7 +54,7 @@ tests:
                       - name: SPRING_DATA_MONGODB_URI
                         valueFrom:
                           secretKeyRef:
-                            key: connectionString0
+                            key: PrimaryMongoDBConnectionString
                             name: cosmosdb-cod-mynamespace-myapplication-test
                       - name: SPRING_DATA_MONGODB_DATABASE
                         value: "test"
@@ -82,3 +82,23 @@ tests:
               mongoDBVersion: "4.0"
               capabilities:
                 - name: "EnableMongo"
+  - operation: CreateOrUpdate
+    apiVersion: networking.istio.io/v1alpha3
+    kind: ServiceEntry
+    name: mynamespace-myapplication-cod-test
+    match:
+      - type: exact
+        name: "ServiceEntry for mongodb"
+        exclude:
+          - .status
+          - .metadata
+        resource:
+          spec:
+            hosts:
+              - cod-mynamespace-myapplication-test.mongo.cosmos.azure.com
+            location: MESH_EXTERNAL
+            ports:
+              - name: mongodb
+                number: 10255
+                protocol: TCP
+            resolution: DNS

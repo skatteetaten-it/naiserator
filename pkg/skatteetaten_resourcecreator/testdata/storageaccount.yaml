@@ -85,7 +85,7 @@ tests:
     name: mynamespace-myapplication-sg-test
     match:
       - type: exact
-        name: "ServiceEntry for postgres"
+        name: "ServiceEntry for storagegrid"
         exclude:
           - .status
           - .metadata
