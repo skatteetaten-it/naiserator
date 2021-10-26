@@ -18,9 +18,7 @@ func Create(app Source, ast *resource.Ast, options resource.Options) {
 	ingressConfig := app.GetIngress()
 	if ingressConfig != nil && ingressConfig.Public != nil {
 		for _, ingress := range ingressConfig.Public {
-			if ! ingress.Disabled {
-				generateVirtualService(app, ast, &ingress, options)
-			}
+			generateVirtualService(app, ast, &ingress, options)
 		}
 	}
 }
