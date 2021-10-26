@@ -41,7 +41,7 @@ func generateServiceEntry(source resource.Source, ast *resource.Ast, key string,
 	serviceentry.Spec.Location = "MESH_EXTERNAL"
 	serviceentry.Spec.Hosts = append(serviceentry.Spec.Hosts, config.Host)
 
-	//TODO: kan denne være omnitempty i liberator?
+	//TODO: kan denne være omnitempty i liberator? Nei, men maa ha en default verdi.
 	serviceentry.Spec.Ports= []networking_istio_io_v1alpha3.Port{}
 	for _, port := range config.Ports {
 		serviceentry.Spec.Ports = append(serviceentry.Spec.Ports, networking_istio_io_v1alpha3.Port{
@@ -50,6 +50,13 @@ func generateServiceEntry(source resource.Source, ast *resource.Ast, key string,
 			Name:     port.Name,
 		})
 	}
+	// Is there a better way to set the default port for ServiceEntry?
+	if len(serviceentry.Spec.Ports) == 0 {
+		serviceentry.Spec.Ports = append(serviceentry.Spec.Ports, networking_istio_io_v1alpha3.Port{
+			Number:   443,
+			Protocol: "HTTPS",
+			Name:     "https",
+		})
+	}
 	ast.AppendOperation(resource.OperationCreateOrUpdate, &serviceentry)
-
 }
