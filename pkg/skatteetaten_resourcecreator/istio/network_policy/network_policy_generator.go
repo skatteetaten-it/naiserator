@@ -85,7 +85,16 @@ func Create(app Source, ast *resource.Ast) {
 
 		// External egress
 		if len(egressConfig.External) > 0 {
-			np.Spec.Egress = append(np.Spec.Egress, *generateNetworkPolicyExternalEgressRule())
+			np.Spec.Egress = append(np.Spec.Egress, generateNetworkPolicyExternalEgressRule())
+			np.Spec.Egress = append(np.Spec.Egress, networkingv1.NetworkPolicyEgressRule{
+				To: []networkingv1.NetworkPolicyPeer{{
+					IPBlock: &networkingv1.IPBlock{
+						CIDR: "10.209.0.0/16",
+					},
+				}},
+				Ports: []networkingv1.NetworkPolicyPort{generateNetworkPolicyPort("TCP", 443),
+				},
+			})
 		}
 	}
 
@@ -156,6 +165,7 @@ func generateDefaultEgressRules(source resource.Source) *[]networkingv1.NetworkP
 	peer := networkingv1.NetworkPolicyPeer{}
 	peer.IPBlock = &networkingv1.IPBlock{CIDR: "127.0.0.1/32"}
 	rule.To = []networkingv1.NetworkPolicyPeer{peer}
+
 	ruleList = append(ruleList, rule)
 
 	return &ruleList
@@ -192,13 +202,13 @@ func generateNetworkPolicyEgressRule(source resource.Source, outbound skatteetat
 	return &rule
 }
 
-func generateNetworkPolicyExternalEgressRule() *networkingv1.NetworkPolicyEgressRule {
+func generateNetworkPolicyExternalEgressRule() networkingv1.NetworkPolicyEgressRule {
 	// The Calico version on AKS only supports IP based rules for external hosts. (Calico enterprise
 	// supports hostname based filtering). Doing IP-based filtering is not a viable solution, so to
 	// allow any external traffic we need accept all. However, we can still force use of Network
 	// Policies for any internal traffic. For external egress we use Istio ServiceEntry to handle
 	// filtering in Istio. Note that egress has to be configured in Azure firewall (NSG) as well.
-	return &networkingv1.NetworkPolicyEgressRule{
+	return networkingv1.NetworkPolicyEgressRule{
 		To: []networkingv1.NetworkPolicyPeer{{
 			IPBlock: &networkingv1.IPBlock{
 				CIDR: "0.0.0.0/0",
@@ -206,9 +216,9 @@ func generateNetworkPolicyExternalEgressRule() *networkingv1.NetworkPolicyEgress
 					"10.0.0.0/8",
 					"172.16.0.0/12",
 					"192.168.0.0/16",
-				}},
-		},
-		},
+				},
+			},
+		}},
 	}
 }
 
@@ -232,10 +242,10 @@ func generateNetworkPolicyPeer(source resource.Source, namespace string, appLabe
 	return &peer
 }
 
-func generateNetworkPolicyPort(protocol string, port uint16) *networkingv1.NetworkPolicyPort {
+func generateNetworkPolicyPort(protocol string, port uint16) networkingv1.NetworkPolicyPort {
 	protocolType := v1.Protocol(protocol)
 
-	return &networkingv1.NetworkPolicyPort{
+	return networkingv1.NetworkPolicyPort{
 		Protocol: &protocolType,
 		Port:     &intstr.IntOrString{Type: intstr.Int, IntVal: int32(port)},
 	}
@@ -244,7 +254,7 @@ func generateNetworkPolicyPort(protocol string, port uint16) *networkingv1.Netwo
 func generateNetworkPolicyPorts(portConfig []skatteetaten_no_v1alpha1.PortConfig) *[]networkingv1.NetworkPolicyPort {
 	var ports []networkingv1.NetworkPolicyPort
 	for _, port := range portConfig {
-		ports = append(ports, *generateNetworkPolicyPort(port.Protocol, port.Port))
+		ports = append(ports, generateNetworkPolicyPort(port.Protocol, port.Port))
 	}
 
 	return &ports
