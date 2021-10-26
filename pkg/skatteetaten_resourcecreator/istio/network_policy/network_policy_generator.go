@@ -61,8 +61,8 @@ func Create(app Source, ast *resource.Ast) {
 				"istio": "ingressgateway",
 			}
 
-			rule.From = []networkingv1.NetworkPolicyPeer{*generateNetworkPolicyPeer(app, authorization_policy.IstioNamespace, appLabel)}
-			rule.Ports = *generateNetworkPolicyPorts([]skatteetaten_no_v1alpha1.PortConfig{{Port: uint16(ingress.Port), Protocol: "TCP"}})
+			rule.From = []networkingv1.NetworkPolicyPeer{generateNetworkPolicyPeer(authorization_policy.IstioNamespace, appLabel)}
+			rule.Ports = generateNetworkPolicyPorts([]skatteetaten_no_v1alpha1.PortConfig{{Port: uint16(ingress.Port), Protocol: "TCP"}})
 			np.Spec.Ingress = append(np.Spec.Ingress, rule)
 		}
 	}
@@ -85,7 +85,15 @@ func Create(app Source, ast *resource.Ast) {
 
 		// External egress
 		if len(egressConfig.External) > 0 {
-			np.Spec.Egress = append(np.Spec.Egress, *generateNetworkPolicyExternalEgressRule())
+			np.Spec.Egress = append(np.Spec.Egress, generateNetworkPolicyExternalEgressRule())
+			np.Spec.Egress = append(np.Spec.Egress, networkingv1.NetworkPolicyEgressRule{
+				To: []networkingv1.NetworkPolicyPeer{{
+					IPBlock: &networkingv1.IPBlock{
+						CIDR: "10.209.0.0/16",
+					},
+				}},
+				Ports: []networkingv1.NetworkPolicyPort{generateNetworkPolicyPort("TCP", 443)},
+			})
 		}
 	}
 
@@ -113,11 +121,8 @@ func generateDefaultIngressRules(source resource.Source) *[]networkingv1.Network
 	// Allow prometheus scraping on the "merged metrics" port on the istio proxy.
 	// Istio proxy collects metrics from the app on the configured metrics port and merges with own metrics.
 	rule := networkingv1.NetworkPolicyIngressRule{}
-	rule.From = []networkingv1.NetworkPolicyPeer{*generateNetworkPolicyPeer(
-		source,
-		authorization_policy.IstioNamespace,
-		map[string]string{"app": "prometheus", "component": "server"})}
-	rule.Ports = *generateNetworkPolicyPorts([]skatteetaten_no_v1alpha1.PortConfig{{Protocol: "TCP", Port: MetricsPort}})
+	rule.From = []networkingv1.NetworkPolicyPeer{generateNetworkPolicyPeer(authorization_policy.IstioNamespace, map[string]string{"app": "prometheus", "component": "server"})}
+	rule.Ports = generateNetworkPolicyPorts([]skatteetaten_no_v1alpha1.PortConfig{{Protocol: "TCP", Port: MetricsPort}})
 	ruleList = append(ruleList, rule)
 
 	return &ruleList
@@ -128,26 +133,20 @@ func generateDefaultEgressRules(source resource.Source) *[]networkingv1.NetworkP
 	rule := networkingv1.NetworkPolicyEgressRule{}
 
 	// Allow access to kube-dns
-	rule.To = []networkingv1.NetworkPolicyPeer{*generateNetworkPolicyPeer(
-		source,
-		KubeNamespace,
-		map[string]string{"k8s-app": "kube-dns"})}
-	rule.Ports = *generateNetworkPolicyPorts([]skatteetaten_no_v1alpha1.PortConfig{{Protocol: "UDP", Port: DNSPort}})
+	rule.To = []networkingv1.NetworkPolicyPeer{generateNetworkPolicyPeer(KubeNamespace, map[string]string{"k8s-app": "kube-dns"})}
+	rule.Ports = generateNetworkPolicyPorts([]skatteetaten_no_v1alpha1.PortConfig{{Protocol: "UDP", Port: DNSPort}})
 	ruleList = append(ruleList, rule)
 
 	// Seems like kube-dns isn't enough. And I am not sure why, but some investigation
 	// suggests it is only required when starting up sidecar/init-containers in AKS.
 	rule = networkingv1.NetworkPolicyEgressRule{}
-	rule.Ports = *generateNetworkPolicyPorts([]skatteetaten_no_v1alpha1.PortConfig{{Protocol: "UDP", Port: DNSPort}})
+	rule.Ports = generateNetworkPolicyPorts([]skatteetaten_no_v1alpha1.PortConfig{{Protocol: "UDP", Port: DNSPort}})
 	ruleList = append(ruleList, rule)
 
 	// Istio Proxy needs access to Istio pilot.
 	// TODO: Limit on specific ports.
 	rule = networkingv1.NetworkPolicyEgressRule{}
-	rule.To = []networkingv1.NetworkPolicyPeer{*generateNetworkPolicyPeer(
-		source,
-		authorization_policy.IstioNamespace,
-		map[string]string{"app": "istiod", "istio": "pilot"})}
+	rule.To = []networkingv1.NetworkPolicyPeer{generateNetworkPolicyPeer(authorization_policy.IstioNamespace, map[string]string{"app": "istiod", "istio": "pilot"})}
 	ruleList = append(ruleList, rule)
 
 	// This is needed to reach the cluster's metadata server (169.254.169.254).
@@ -156,6 +155,7 @@ func generateDefaultEgressRules(source resource.Source) *[]networkingv1.NetworkP
 	peer := networkingv1.NetworkPolicyPeer{}
 	peer.IPBlock = &networkingv1.IPBlock{CIDR: "127.0.0.1/32"}
 	rule.To = []networkingv1.NetworkPolicyPeer{peer}
+
 	ruleList = append(ruleList, rule)
 
 	return &ruleList
@@ -169,8 +169,8 @@ func generateNetworkPolicyIngressRule(source resource.Source, inbound skatteetat
 		appLabel["app"] = inbound.Application
 	}
 
-	rule.From = []networkingv1.NetworkPolicyPeer{*generateNetworkPolicyPeer(source, inbound.Namespace, appLabel)}
-	rule.Ports = *generateNetworkPolicyPorts(inbound.Ports)
+	rule.From = []networkingv1.NetworkPolicyPeer{generateNetworkPolicyPeer(inbound.Namespace, appLabel)}
+	rule.Ports = generateNetworkPolicyPorts(inbound.Ports)
 
 	return &rule
 }
@@ -183,22 +183,19 @@ func generateNetworkPolicyEgressRule(source resource.Source, outbound skatteetat
 		appLabel["app"] = outbound.Application
 	}
 
-	rule.To = []networkingv1.NetworkPolicyPeer{*generateNetworkPolicyPeer(
-		source,
-		outbound.Namespace,
-		appLabel)}
-	rule.Ports = *generateNetworkPolicyPorts(outbound.Ports)
+	rule.To = []networkingv1.NetworkPolicyPeer{generateNetworkPolicyPeer(outbound.Namespace, appLabel)}
+	rule.Ports = generateNetworkPolicyPorts(outbound.Ports)
 
 	return &rule
 }
 
-func generateNetworkPolicyExternalEgressRule() *networkingv1.NetworkPolicyEgressRule {
+func generateNetworkPolicyExternalEgressRule() networkingv1.NetworkPolicyEgressRule {
 	// The Calico version on AKS only supports IP based rules for external hosts. (Calico enterprise
 	// supports hostname based filtering). Doing IP-based filtering is not a viable solution, so to
 	// allow any external traffic we need accept all. However, we can still force use of Network
 	// Policies for any internal traffic. For external egress we use Istio ServiceEntry to handle
 	// filtering in Istio. Note that egress has to be configured in Azure firewall (NSG) as well.
-	return &networkingv1.NetworkPolicyEgressRule{
+	return networkingv1.NetworkPolicyEgressRule{
 		To: []networkingv1.NetworkPolicyPeer{{
 			IPBlock: &networkingv1.IPBlock{
 				CIDR: "0.0.0.0/0",
@@ -206,46 +203,33 @@ func generateNetworkPolicyExternalEgressRule() *networkingv1.NetworkPolicyEgress
 					"10.0.0.0/8",
 					"172.16.0.0/12",
 					"192.168.0.0/16",
-				}},
-		},
-		},
+				},
+			},
+		}},
 	}
 }
 
-func generateNetworkPolicyPeer(source resource.Source, namespace string, appLabel map[string]string) *networkingv1.NetworkPolicyPeer {
-	peer := networkingv1.NetworkPolicyPeer{}
-
-	if len(namespace) == 0 {
-		namespace = source.GetNamespace()
+func generateNetworkPolicyPeer(namespace string, appLabel map[string]string) networkingv1.NetworkPolicyPeer {
+	return networkingv1.NetworkPolicyPeer{
+		PodSelector:       &metav1.LabelSelector{MatchLabels: appLabel},
+		NamespaceSelector: &metav1.LabelSelector{MatchLabels: map[string]string{"name": namespace}},
 	}
-
-	peer.NamespaceSelector = &metav1.LabelSelector{
-		MatchLabels: map[string]string{"name": namespace},
-	}
-
-	if len(appLabel) > 0 {
-		peer.PodSelector = &metav1.LabelSelector{
-			MatchLabels: appLabel,
-		}
-	}
-
-	return &peer
 }
 
-func generateNetworkPolicyPort(protocol string, port uint16) *networkingv1.NetworkPolicyPort {
+func generateNetworkPolicyPort(protocol string, port uint16) networkingv1.NetworkPolicyPort {
 	protocolType := v1.Protocol(protocol)
 
-	return &networkingv1.NetworkPolicyPort{
+	return networkingv1.NetworkPolicyPort{
 		Protocol: &protocolType,
 		Port:     &intstr.IntOrString{Type: intstr.Int, IntVal: int32(port)},
 	}
 }
 
-func generateNetworkPolicyPorts(portConfig []skatteetaten_no_v1alpha1.PortConfig) *[]networkingv1.NetworkPolicyPort {
+func generateNetworkPolicyPorts(portConfig []skatteetaten_no_v1alpha1.PortConfig) []networkingv1.NetworkPolicyPort {
 	var ports []networkingv1.NetworkPolicyPort
 	for _, port := range portConfig {
-		ports = append(ports, *generateNetworkPolicyPort(port.Protocol, port.Port))
+		ports = append(ports, generateNetworkPolicyPort(port.Protocol, port.Port))
 	}
 
-	return &ports
+	return ports
 }
