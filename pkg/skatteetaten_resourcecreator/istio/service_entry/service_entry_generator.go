@@ -33,30 +33,37 @@ func GenerateServiceEntry(source resource.Source, ast *resource.Ast, key string,
 			APIVersion: "networking.istio.io/v1alpha3",
 		},
 		ObjectMeta: resource.CreateObjectMeta(source),
-		Spec:       networking_istio_io_v1alpha3.ServiceEntrySpec{},
+		Spec:       networking_istio_io_v1alpha3.ServiceEntrySpec{
+			Hosts:      []string{config.Host},
+			Location:   "MESH_EXTERNAL",
+			Resolution: "DNS",
+			Ports:      generateServiceEntryPorts(config),
+		},
 	}
 
 	serviceentry.ObjectMeta.Name = fmt.Sprintf("%s-%s-%s", source.GetNamespace(), source.GetName(), key)
-	serviceentry.Spec.Resolution = "DNS"
-	serviceentry.Spec.Location = "MESH_EXTERNAL"
-	serviceentry.Spec.Hosts = append(serviceentry.Spec.Hosts, config.Host)
 
-	//TODO: kan denne være omnitempty i liberator? Nei, men maa ha en default verdi.
-	serviceentry.Spec.Ports= []networking_istio_io_v1alpha3.Port{}
+	ast.AppendOperation(resource.OperationCreateOrUpdate, &serviceentry)
+}
+
+func generateServiceEntryPorts(config skatteetaten_no_v1alpha1.ExternalEgressConfig) []networking_istio_io_v1alpha3.Port {
+	//TODO Move to get_set.go in Liberator?
+	if len(config.Ports) == 0 {
+		return []networking_istio_io_v1alpha3.Port{{
+				Number:   443,
+				Protocol: "HTTPS",
+				Name:     "https",
+		}}
+	}
+
+	ports := []networking_istio_io_v1alpha3.Port{}
 	for _, port := range config.Ports {
-		serviceentry.Spec.Ports = append(serviceentry.Spec.Ports, networking_istio_io_v1alpha3.Port{
+		ports = append(ports, networking_istio_io_v1alpha3.Port{
 			Number:   uint32(port.Port),
 			Protocol: port.Protocol,
 			Name:     port.Name,
 		})
 	}
-	// Is there a better way to set the default port for ServiceEntry?
-	if len(serviceentry.Spec.Ports) == 0 {
-		serviceentry.Spec.Ports = append(serviceentry.Spec.Ports, networking_istio_io_v1alpha3.Port{
-			Number:   443,
-			Protocol: "HTTPS",
-			Name:     "https",
-		})
-	}
-	ast.AppendOperation(resource.OperationCreateOrUpdate, &serviceentry)
+
+	return ports
 }
