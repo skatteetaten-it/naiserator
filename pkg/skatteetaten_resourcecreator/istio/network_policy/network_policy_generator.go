@@ -31,7 +31,7 @@ func Create(app Source, ast *resource.Ast) {
 
 	// Minimum required policies needed for a pod to start
 	np.Spec.Ingress = *generateDefaultIngressRules(app)
-	np.Spec.Egress = *generateDefaultEgressRules(app)
+	np.Spec.Egress = *generateDefaultEgressRules()
 
 	if ingressConfig != nil {
 		// Internal ingress
@@ -84,6 +84,7 @@ func Create(app Source, ast *resource.Ast) {
 		}
 
 		// External egress
+		//TODO: is this liberator stuff?
 		if len(egressConfig.External) > 0 {
 			np.Spec.Egress = append(np.Spec.Egress, generateNetworkPolicyExternalEgressRule())
 			np.Spec.Egress = append(np.Spec.Egress, networkingv1.NetworkPolicyEgressRule{
@@ -116,19 +117,15 @@ func generateNetworkPolicy(source resource.Source) *networkingv1.NetworkPolicy {
 }
 
 func generateDefaultIngressRules(source resource.Source) *[]networkingv1.NetworkPolicyIngressRule {
-	var ruleList []networkingv1.NetworkPolicyIngressRule
-
-	// Allow prometheus scraping on the "merged metrics" port on the istio proxy.
-	// Istio proxy collects metrics from the app on the configured metrics port and merges with own metrics.
-	rule := networkingv1.NetworkPolicyIngressRule{}
-	rule.From = generateNetworkPolicyPeer(authorization_policy.IstioNamespace, map[string]string{"app": "prometheus", "component": "server"})
-	rule.Ports = generateNetworkPolicyPorts([]skatteetaten_no_v1alpha1.PortConfig{{Protocol: "TCP", Port: MetricsPort}})
-	ruleList = append(ruleList, rule)
-
-	return &ruleList
+	return &[]networkingv1.NetworkPolicyIngressRule{{
+		// Allow prometheus scraping on the "merged metrics" port on the istio proxy.
+		// Istio proxy collects metrics from the app on the configured metrics port and merges with own metrics.
+		From:  generateNetworkPolicyPeer(authorization_policy.IstioNamespace, map[string]string{"app": "prometheus", "component": "server"}),
+		Ports: generateNetworkPolicyPorts([]skatteetaten_no_v1alpha1.PortConfig{{Protocol: "TCP", Port: MetricsPort}}),
+	}}
 }
 
-func generateDefaultEgressRules(source resource.Source) *[]networkingv1.NetworkPolicyEgressRule {
+func generateDefaultEgressRules() *[]networkingv1.NetworkPolicyEgressRule {
 	dnsPort := generateNetworkPolicyPorts([]skatteetaten_no_v1alpha1.PortConfig{{Protocol: "UDP", Port: DNSPort}})
 
 	return &[]networkingv1.NetworkPolicyEgressRule{
@@ -136,7 +133,7 @@ func generateDefaultEgressRules(source resource.Source) *[]networkingv1.NetworkP
 		{
 			// Allow access to kube-dns
 			Ports: dnsPort,
-			To:  generateNetworkPolicyPeer(KubeNamespace, map[string]string{"k8s-app": "kube-dns"}),
+			To:    generateNetworkPolicyPeer(KubeNamespace, map[string]string{"k8s-app": "kube-dns"}),
 		},
 		{
 			// Seems like kube-dns isn't enough. And I am not sure why, but some investigation
@@ -146,7 +143,7 @@ func generateDefaultEgressRules(source resource.Source) *[]networkingv1.NetworkP
 		{
 			// Istio Proxy needs access to Istio pilot.
 			// TODO: Limit on specific ports.
-			To : generateNetworkPolicyPeer(authorization_policy.IstioNamespace, map[string]string{"app": "istiod", "istio": "pilot"}),
+			To: generateNetworkPolicyPeer(authorization_policy.IstioNamespace, map[string]string{"app": "istiod", "istio": "pilot"}),
 		},
 		{
 			// This is needed to reach the cluster's metadata server (169.254.169.254).
@@ -165,7 +162,7 @@ func generateNetworkPolicyIngressRule(source resource.Source, inbound skatteetat
 		appLabel["app"] = inbound.Application
 	}
 
-	//TODO: liberator: sette namesapce til app sin ns hvis ikke satt
+	// TODO: liberator: sette namesapce til app sin ns hvis ikke satt
 	namespace := inbound.Namespace
 	if len(namespace) == 0 {
 		namespace = source.GetNamespace()
@@ -183,7 +180,7 @@ func generateNetworkPolicyEgressRule(source resource.Source, outbound skatteetat
 		appLabel["app"] = outbound.Application
 	}
 
-	//TODO: liberator: sette namesapce til app sin ns hvis ikke satt
+	// TODO: liberator: sette namesapce til app sin ns hvis ikke satt
 	namespace := outbound.Namespace
 	if len(namespace) == 0 {
 		namespace = source.GetNamespace()
