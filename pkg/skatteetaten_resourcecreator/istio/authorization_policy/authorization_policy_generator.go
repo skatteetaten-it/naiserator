@@ -50,7 +50,6 @@ func Create(app Source, ast *resource.Ast) {
 				Ports:       []skatteetaten_no_v1alpha1.PortConfig{{Port: uint16(ingress.Port)}},
 			}),
 		)
-
 	}
 
 	// Sort to allow fixture testing
@@ -68,7 +67,6 @@ func Create(app Source, ast *resource.Ast) {
 		)
 	}
 	ast.AppendOperation(resource.OperationCreateOrUpdate, authPolicy)
-
 }
 
 func generateAuthorizationPolicyRule(rule skatteetaten_no_v1alpha1.InternalIngressConfig) *security_istio_io_v1beta1.Rule {
@@ -114,11 +112,9 @@ func generateAuthorizationPolicyRule(rule skatteetaten_no_v1alpha1.InternalIngre
 	Operation.Paths = rule.Paths
 	Operation.Methods = rule.Methods
 
-	// TODO: need to find something to simulatte this
-	// if Operation.Size() > 0 {
-
-	PolicyRule.To = []*security_istio_io_v1beta1.Rule_To{{Operation: &Operation}}
-	// }
+	if len(Operation.Ports) + len(Operation.Paths) + len(Operation.Methods) > 0 {
+		PolicyRule.To = []*security_istio_io_v1beta1.Rule_To{{Operation: &Operation}}
+	}
 
 	return PolicyRule
 }

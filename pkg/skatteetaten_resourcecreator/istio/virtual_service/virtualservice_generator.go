@@ -56,5 +56,6 @@ func generateVirtualService(source resource.Source, ast *resource.Ast, ingress *
 			}},
 		},
 	}
+	vs.ObjectMeta.Name = fqdn
 	ast.AppendOperation(resource.OperationCreateOrUpdate, vs)
 }

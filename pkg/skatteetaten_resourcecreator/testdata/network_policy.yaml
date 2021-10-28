@@ -1,0 +1,202 @@
+config:
+  description: NetworkPolicy generator
+
+resourceoptions:
+  AzureDomainName: "mydomain"
+
+input:
+  kind: Application
+  apiVersion: nebula.skatteetaten.no/v1alpha1
+  metadata:
+    name: myapplication
+    namespace: mynamespace
+    uid: "123456"
+    labels:
+      team: myteam
+  spec:
+    pod:
+      image: navikt/myapplication:1.2.3
+    ingress:
+      public:
+        default:
+          serviceport: 80
+          port: 8080
+      internal:
+        app_in_same_ns:
+          application: inbound_someapp
+        app_in_other_ns:
+          application: inbound_other_app
+          namespace: inbound_other_ns
+        all_apps_in_other_ns:
+          namespace: inbound_other_ns
+        all_apps_in_same_ns:
+          namespace: mynamespace
+        app_all_fields:
+          namespace: inbound_some_ns
+          application: inbound_some_app
+          ports:
+            - protocol: TCP
+              port: 7777
+          path: /metrics # Only for authpol not netpol
+          method: GET    # Only for authpol not netpol
+    egress:
+      external:
+        someapp:
+          host: someapp.example.no
+      internal:
+        app_in_same_ns:
+          application: outbound_someapp
+        app_in_other_ns:
+          application: outbound_other_app
+          namespace: outbound_other_ns
+        all_apps_in_other_ns:
+          namespace: outbound_other_ns
+        all_apps_in_same_ns:
+          namespace: mynamespace
+        app_all_fields:
+          namespace: outbound_some_ns
+          application: outbound_some_app
+          ports:
+            - protocol: TCP
+              port: 8888
+
+tests:
+  - operation: CreateOrUpdate
+    apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    name: myapplication
+    match:
+      - name: "network policy full example"
+        type: exact
+        exclude:
+          - .metadata
+        resource:
+          spec:
+            egress:
+              - ports:
+                  - port: 53
+                    protocol: UDP
+                to:
+                  - namespaceSelector:
+                      matchLabels:
+                        name: kube-system
+                    podSelector:
+                      matchLabels:
+                        k8s-app: kube-dns
+              - ports:
+                  - port: 53
+                    protocol: UDP
+              - to:
+                  - namespaceSelector:
+                      matchLabels:
+                        name: istio-system
+                    podSelector:
+                      matchLabels:
+                        app: istiod
+                        istio: pilot
+              - to:
+                  - ipBlock:
+                      cidr: 127.0.0.1/32
+              - to:
+                  - namespaceSelector:
+                      matchLabels:
+                        name: outbound_other_ns
+              - to:
+                  - namespaceSelector:
+                      matchLabels:
+                        name: mynamespace
+              - ports:
+                  - port: 8888
+                    protocol: TCP
+                to:
+                  - namespaceSelector:
+                      matchLabels:
+                        name: outbound_some_ns
+                    podSelector:
+                      matchLabels:
+                        app: outbound_some_app
+              - to:
+                  - namespaceSelector:
+                      matchLabels:
+                        name: outbound_other_ns
+                    podSelector:
+                      matchLabels:
+                        app: outbound_other_app
+              - to:
+                  - namespaceSelector:
+                      matchLabels:
+                        name: mynamespace
+                    podSelector:
+                      matchLabels:
+                        app: outbound_someapp
+              - to:
+                  - ipBlock:
+                      cidr: 0.0.0.0/0
+                      except:
+                        - 10.0.0.0/8
+                        - 172.16.0.0/12
+                        - 192.168.0.0/16
+              - ports:
+                  - port: 443
+                    protocol: TCP
+                to:
+                  - ipBlock:
+                      cidr: 10.209.0.0/16
+            ingress:
+              - from:
+                  - namespaceSelector:
+                      matchLabels:
+                        name: istio-system
+                    podSelector:
+                      matchLabels:
+                        app: prometheus
+                        component: server
+                ports:
+                  - port: 15020
+                    protocol: TCP
+              - from:
+                  - namespaceSelector:
+                      matchLabels:
+                        name: inbound_other_ns
+              - from:
+                  - namespaceSelector:
+                      matchLabels:
+                        name: mynamespace
+              - from:
+                  - namespaceSelector:
+                      matchLabels:
+                        name: inbound_some_ns
+                    podSelector:
+                      matchLabels:
+                        app: inbound_some_app
+                ports:
+                  - port: 7777
+                    protocol: TCP
+              - from:
+                  - namespaceSelector:
+                      matchLabels:
+                        name: inbound_other_ns
+                    podSelector:
+                      matchLabels:
+                        app: inbound_other_app
+              - from:
+                  - namespaceSelector:
+                      matchLabels:
+                        name: mynamespace
+                    podSelector:
+                      matchLabels:
+                        app: inbound_someapp
+              - from:
+                  - namespaceSelector:
+                      matchLabels:
+                        name: istio-system
+                    podSelector:
+                      matchLabels:
+                        app: istio-ingressgateway
+                        istio: ingressgateway
+                ports:
+                  - port: 8080
+                    protocol: TCP
+            podSelector:
+              matchLabels:
+                app: myapplication

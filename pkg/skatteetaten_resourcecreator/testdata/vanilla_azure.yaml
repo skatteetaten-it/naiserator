@@ -60,7 +60,7 @@ tests:
   - operation: CreateOrUpdate
     apiVersion: networking.istio.io/v1alpha3
     kind: VirtualService
-    name: myapplication
+    name: myapplication-mynamespace.istio.nebula.dev.skatteetaten.io
     match:
       - name: "network policy created with only system services"
         type: exact
