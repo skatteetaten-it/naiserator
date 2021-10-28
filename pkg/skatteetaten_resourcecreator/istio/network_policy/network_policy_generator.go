@@ -61,7 +61,7 @@ func Create(app Source, ast *resource.Ast) {
 				"istio": "ingressgateway",
 			}
 
-			rule.From = []networkingv1.NetworkPolicyPeer{generateNetworkPolicyPeer(app, authorization_policy.IstioNamespace, appLabel)}
+			rule.From = generateNetworkPolicyPeer(authorization_policy.IstioNamespace, appLabel)
 			rule.Ports = generateNetworkPolicyPorts([]skatteetaten_no_v1alpha1.PortConfig{{Port: uint16(ingress.Port), Protocol: "TCP"}})
 			np.Spec.Ingress = append(np.Spec.Ingress, rule)
 		}
@@ -121,7 +121,7 @@ func generateDefaultIngressRules(source resource.Source) *[]networkingv1.Network
 	// Allow prometheus scraping on the "merged metrics" port on the istio proxy.
 	// Istio proxy collects metrics from the app on the configured metrics port and merges with own metrics.
 	rule := networkingv1.NetworkPolicyIngressRule{}
-	rule.From = []networkingv1.NetworkPolicyPeer{generateNetworkPolicyPeer(source, authorization_policy.IstioNamespace, map[string]string{"app": "prometheus", "component": "server"})}
+	rule.From = generateNetworkPolicyPeer(authorization_policy.IstioNamespace, map[string]string{"app": "prometheus", "component": "server"})
 	rule.Ports = generateNetworkPolicyPorts([]skatteetaten_no_v1alpha1.PortConfig{{Protocol: "TCP", Port: MetricsPort}})
 	ruleList = append(ruleList, rule)
 
@@ -129,64 +129,70 @@ func generateDefaultIngressRules(source resource.Source) *[]networkingv1.Network
 }
 
 func generateDefaultEgressRules(source resource.Source) *[]networkingv1.NetworkPolicyEgressRule {
-	var ruleList []networkingv1.NetworkPolicyEgressRule
-	rule := networkingv1.NetworkPolicyEgressRule{}
+	dnsPort := generateNetworkPolicyPorts([]skatteetaten_no_v1alpha1.PortConfig{{Protocol: "UDP", Port: DNSPort}})
 
-	// Allow access to kube-dns
-	rule.To = []networkingv1.NetworkPolicyPeer{generateNetworkPolicyPeer(source, KubeNamespace, map[string]string{"k8s-app": "kube-dns"})}
-	rule.Ports = generateNetworkPolicyPorts([]skatteetaten_no_v1alpha1.PortConfig{{Protocol: "UDP", Port: DNSPort}})
-	ruleList = append(ruleList, rule)
+	return &[]networkingv1.NetworkPolicyEgressRule{
 
-	// Seems like kube-dns isn't enough. And I am not sure why, but some investigation
-	// suggests it is only required when starting up sidecar/init-containers in AKS.
-	rule = networkingv1.NetworkPolicyEgressRule{}
-	rule.Ports = generateNetworkPolicyPorts([]skatteetaten_no_v1alpha1.PortConfig{{Protocol: "UDP", Port: DNSPort}})
-	ruleList = append(ruleList, rule)
-
-	// Istio Proxy needs access to Istio pilot.
-	// TODO: Limit on specific ports.
-	rule = networkingv1.NetworkPolicyEgressRule{}
-	rule.To = []networkingv1.NetworkPolicyPeer{generateNetworkPolicyPeer(source, authorization_policy.IstioNamespace, map[string]string{"app": "istiod", "istio": "pilot"})}
-	ruleList = append(ruleList, rule)
-
-	// This is needed to reach the cluster's metadata server (169.254.169.254).
-	// It's reachable through localhost, so why we need the rule at all is weird.
-	rule = networkingv1.NetworkPolicyEgressRule{}
-	peer := networkingv1.NetworkPolicyPeer{}
-	peer.IPBlock = &networkingv1.IPBlock{CIDR: "127.0.0.1/32"}
-	rule.To = []networkingv1.NetworkPolicyPeer{peer}
-
-	ruleList = append(ruleList, rule)
-
-	return &ruleList
+		{
+			// Allow access to kube-dns
+			Ports: dnsPort,
+			To:  generateNetworkPolicyPeer(KubeNamespace, map[string]string{"k8s-app": "kube-dns"}),
+		},
+		{
+			// Seems like kube-dns isn't enough. And I am not sure why, but some investigation
+			// suggests it is only required when starting up sidecar/init-containers in AKS.
+			Ports: dnsPort,
+		},
+		{
+			// Istio Proxy needs access to Istio pilot.
+			// TODO: Limit on specific ports.
+			To : generateNetworkPolicyPeer(authorization_policy.IstioNamespace, map[string]string{"app": "istiod", "istio": "pilot"}),
+		},
+		{
+			// This is needed to reach the cluster's metadata server (169.254.169.254).
+			// It's reachable through localhost, so why we need the rule at all is weird.
+			To: []networkingv1.NetworkPolicyPeer{{
+				IPBlock: &networkingv1.IPBlock{CIDR: "127.0.0.1/32"},
+			}},
+		},
+	}
 }
 
 func generateNetworkPolicyIngressRule(source resource.Source, inbound skatteetaten_no_v1alpha1.InternalIngressConfig) *networkingv1.NetworkPolicyIngressRule {
-	rule := networkingv1.NetworkPolicyIngressRule{}
 	appLabel := map[string]string{}
 
 	if inbound.Application != "*" && inbound.Application != "" {
 		appLabel["app"] = inbound.Application
 	}
 
-	rule.From = []networkingv1.NetworkPolicyPeer{generateNetworkPolicyPeer(source, inbound.Namespace, appLabel)}
-	rule.Ports = generateNetworkPolicyPorts(inbound.Ports)
+	//TODO: liberator: sette namesapce til app sin ns hvis ikke satt
+	namespace := inbound.Namespace
+	if len(namespace) == 0 {
+		namespace = source.GetNamespace()
+	}
 
-	return &rule
+	return &networkingv1.NetworkPolicyIngressRule{
+		Ports: generateNetworkPolicyPorts(inbound.Ports),
+		From:  generateNetworkPolicyPeer(namespace, appLabel),
+	}
 }
 
 func generateNetworkPolicyEgressRule(source resource.Source, outbound skatteetaten_no_v1alpha1.InternalEgressConfig) *networkingv1.NetworkPolicyEgressRule {
-	rule := networkingv1.NetworkPolicyEgressRule{}
 	appLabel := map[string]string{}
-
 	if outbound.Application != "*" && outbound.Application != "" {
 		appLabel["app"] = outbound.Application
 	}
 
-	rule.To = []networkingv1.NetworkPolicyPeer{generateNetworkPolicyPeer(source, outbound.Namespace, appLabel)}
-	rule.Ports = generateNetworkPolicyPorts(outbound.Ports)
+	//TODO: liberator: sette namesapce til app sin ns hvis ikke satt
+	namespace := outbound.Namespace
+	if len(namespace) == 0 {
+		namespace = source.GetNamespace()
+	}
 
-	return &rule
+	return &networkingv1.NetworkPolicyEgressRule{
+		Ports: generateNetworkPolicyPorts(outbound.Ports),
+		To:    generateNetworkPolicyPeer(namespace, appLabel),
+	}
 }
 
 func generateNetworkPolicyExternalEgressRule() networkingv1.NetworkPolicyEgressRule {
@@ -209,12 +215,8 @@ func generateNetworkPolicyExternalEgressRule() networkingv1.NetworkPolicyEgressR
 	}
 }
 
-func generateNetworkPolicyPeer(source resource.Source, namespace string, appLabel map[string]string) networkingv1.NetworkPolicyPeer {
+func generateNetworkPolicyPeer(namespace string, appLabel map[string]string) []networkingv1.NetworkPolicyPeer {
 	np := networkingv1.NetworkPolicyPeer{}
-
-	if len(namespace) == 0 {
-		namespace = source.GetNamespace()
-	}
 
 	np.NamespaceSelector = &metav1.LabelSelector{
 		MatchLabels: map[string]string{"name": namespace},
@@ -226,7 +228,7 @@ func generateNetworkPolicyPeer(source resource.Source, namespace string, appLabe
 		}
 	}
 
-	return np
+	return []networkingv1.NetworkPolicyPeer{np}
 }
 
 func generateNetworkPolicyPort(protocol string, port uint16) networkingv1.NetworkPolicyPort {
