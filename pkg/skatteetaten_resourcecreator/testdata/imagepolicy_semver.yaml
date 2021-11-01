@@ -34,7 +34,7 @@ tests:
         resource:
           metadata:
             name: myapplication-mynamespace
-            namespace: flux-system
+            namespace: mynamespace
           spec:
             imageRepositoryRef:
               name: myapplication

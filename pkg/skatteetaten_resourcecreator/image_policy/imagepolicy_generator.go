@@ -64,7 +64,7 @@ func Create(app Source, ast *resource.Ast) error {
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      imagePolicyName,
-			Namespace: "flux-system",
+			Namespace: app.GetNamespace(),
 		},
 		Spec: fluxcd_io_image_reflector_v1beta1.ImagePolicySpec{
 			ImageRepositoryRef: fluxcd_io_image_reflector_v1beta1.LocalObjectReference{Name: app.GetName()},
