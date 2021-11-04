@@ -11,7 +11,7 @@ input:
   apiVersion: nebula.skatteetaten.no/v1alpha1
   metadata:
     name: myapplication
-    namespace: mynamespace
+    namespace: my-namespace
     uid: "123456"
   spec:
     pod:
@@ -82,7 +82,7 @@ tests:
   - operation: CreateOrUpdate
     apiVersion: networking.istio.io/v1alpha3
     kind: ServiceEntry
-    name: mynamespace-myapplication-sg-test
+    name: my-namespace-myapplication-sg-test
     match:
       - type: exact
         name: "ServiceEntry for storagegrid"

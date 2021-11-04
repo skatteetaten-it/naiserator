@@ -31,7 +31,7 @@ func Create(app Source, ast *resource.Ast) {
 
 func generateStorageAccount(source resource.Source, ast *resource.Ast, rg string, sg *skatteetaten_no_v1alpha1.StorageAccountConfig) {
 	objectMeta := resource.CreateObjectMeta(source)
-	objectMeta.Name = fmt.Sprintf("sg%s%s%s", source.GetNamespace(), source.GetName(), sg.Name)
+	objectMeta.Name = strings.ReplaceAll(fmt.Sprintf("sg%s%s%s", source.GetNamespace(), source.GetName(), sg.Name), "-", "")
 
 	object := &azure_microsoft_com_v1alpha1.StorageAccount{
 		TypeMeta: metav1.TypeMeta{
