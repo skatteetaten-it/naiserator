@@ -38,7 +38,7 @@ func Create(app Source, ast *resource.Ast) {
 		_, ok := serverNames[db.Server]
 		if !ok {
 			serverNames[db.Server] =skatteetaten_no_v1alpha1.ExternalEgressConfig{
-				Host:  fmt.Sprintf("%s.database.azure.com", generateDatabaseServerName(app, db.Server)),
+				Host:  fmt.Sprintf("%s.postgres.database.azure.com", generateDatabaseServerName(app, db.Server)),
 				Ports: []skatteetaten_no_v1alpha1.PortConfig{{
 					Name:     "postgres",
 					Port:     5432,
