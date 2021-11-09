@@ -29,6 +29,7 @@ type Source interface {
 	ApplyDefaults() error
 	Hash() (string, error)
 	SetStatusConditions()
+
 }
 
 func CreateObjectMeta(source Source) metav1.ObjectMeta {
