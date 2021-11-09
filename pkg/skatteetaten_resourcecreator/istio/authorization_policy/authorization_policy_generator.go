@@ -29,17 +29,11 @@ func Create(app Source, ast *resource.Ast) {
 
 	// Authorization Policies to allow ingress from configured istio gateways
 	for _, ingress := range ingressConfig.Public {
-		// TODO: can be removed as default is defined in application_types
-		gateway := ingress.Gateway
-		if len(gateway) == 0 {
-			gateway = DefaultIngressGateway
-		}
-
 		authPolicy.Spec.Rules = append(
 			authPolicy.Spec.Rules,
 
 			generateAuthorizationPolicyRule(skatteetaten_no_v1alpha1.InternalIngressConfig{
-				Application: fmt.Sprintf("%s%s", gateway, ServiceAccountSuffix),
+				Application: fmt.Sprintf("%s%s", ingress.Gateway, ServiceAccountSuffix),
 				Namespace:   IstioNamespace,
 				Ports:       []skatteetaten_no_v1alpha1.PortConfig{{Port: uint16(ingress.Port)}},
 			}, appNamespace),

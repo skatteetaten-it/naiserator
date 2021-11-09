@@ -20,7 +20,6 @@ input:
       public:
         default:
           serviceport: 80
-          port: 8080
       internal:
         app_in_same_ns:
           application: inbound_someapp
