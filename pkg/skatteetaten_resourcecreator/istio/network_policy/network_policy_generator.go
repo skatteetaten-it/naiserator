@@ -22,6 +22,7 @@ type Source interface {
 	resource.Source
 	GetIngress() *skatteetaten_no_v1alpha1.IngressConfig
 	GetEgress() *skatteetaten_no_v1alpha1.EgressConfig
+	GetAzure() *skatteetaten_no_v1alpha1.AzureConfig
 }
 
 func Create(app Source, ast *resource.Ast) {
@@ -83,9 +84,8 @@ func Create(app Source, ast *resource.Ast) {
 					egressConfig.Internal[rule]))
 		}
 
-		// External egress
-		//TODO: is this liberator stuff?
-		if len(egressConfig.External) > 0 {
+		//if we have external integrations or we have an azure resource
+		if len(egressConfig.External) > 0 || app.GetAzure() != nil {
 			np.Spec.Egress = append(np.Spec.Egress, generateNetworkPolicyExternalEgressRule())
 			np.Spec.Egress = append(np.Spec.Egress, networkingv1.NetworkPolicyEgressRule{
 				To: []networkingv1.NetworkPolicyPeer{{
