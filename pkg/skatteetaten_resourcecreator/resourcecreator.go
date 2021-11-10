@@ -11,6 +11,7 @@ import (
 	"github.com/nais/naiserator/pkg/resourcecreator/resource"
 	"github.com/nais/naiserator/pkg/resourcecreator/service"
 	"github.com/nais/naiserator/pkg/resourcecreator/serviceaccount"
+	"github.com/nais/naiserator/pkg/skatteetaten_resourcecreator/aurora"
 	"github.com/nais/naiserator/pkg/skatteetaten_resourcecreator/azure/cosmosdb"
 	"github.com/nais/naiserator/pkg/skatteetaten_resourcecreator/azure/postgres"
 	"github.com/nais/naiserator/pkg/skatteetaten_resourcecreator/azure/storageaccount"
@@ -20,6 +21,7 @@ import (
 	"github.com/nais/naiserator/pkg/skatteetaten_resourcecreator/istio/service_entry"
 	"github.com/nais/naiserator/pkg/skatteetaten_resourcecreator/istio/virtual_service"
 )
+
 
 func CreateSkatteetatenApplication(source resource.Source, resourceOptions resource.Options) (resource.Operations, error) {
 	app, ok := source.(*skatteetaten_no_v1alpha1.Application)
@@ -52,6 +54,10 @@ func CreateSkatteetatenApplication(source resource.Source, resourceOptions resou
 		storageaccount.Create(app, ast)
 		cosmosdb.Create(app, ast)
 	}
+
+
+	aurora.Create(app, ast)
+
 	err = pod.CreateAppContainer(app, ast, resourceOptions)
 	if err != nil {
 		return nil, err
