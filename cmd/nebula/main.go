@@ -100,6 +100,7 @@ func run() error {
 	resourceOptions.AzureSubscriptionName = cfg.Azure.SubscriptionName
 	resourceOptions.AzureSubscriptionId = cfg.Azure.SubscriptionId
 	resourceOptions.AzureDomainName = cfg.Azure.DomainName
+	resourceOptions.AzureSubnet = cfg.Azure.Subnet
 
 	mgrClient := mgr.GetClient()
 	simpleClient, err := client.New(kconfig, client.Options{

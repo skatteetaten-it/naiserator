@@ -36,7 +36,7 @@ func CreateSkatteetatenApplication(source resource.Source, resourceOptions resou
 	horizontalpodautoscaler.Create(app, ast)
 
 	if !app.Spec.UnsecureDebugDisableAllAccessPolicies {
-		network_policy.Create(app, ast)
+		network_policy.Create(app, ast, resourceOptions)
 		authorization_policy.Create(app, ast)
 	}
 

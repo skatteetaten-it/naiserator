@@ -3,6 +3,7 @@ config:
 
 resourceoptions:
   AzureDomainName: "mydomain"
+  AzureSubnet: "10.24.16.0/24"
 
 input:
   kind: Application
@@ -58,6 +59,7 @@ input:
           ports:
             - protocol: TCP
               port: 8888
+
 
 tests:
   - operation: CreateOrUpdate
@@ -132,7 +134,7 @@ tests:
                   - ipBlock:
                       cidr: 0.0.0.0/0
                       except:
-                        - 10.0.0.0/8
+                        - 10.24.16.0/24
                         - 172.16.0.0/12
                         - 192.168.0.0/16
               - ports:
