@@ -47,15 +47,6 @@ func GenerateServiceEntry(source resource.Source, ast *resource.Ast, key string,
 }
 
 func generateServiceEntryPorts(config skatteetaten_no_v1alpha1.ExternalEgressConfig) []networking_istio_io_v1alpha3.Port {
-	//TODO Move to get_set.go in Liberator?
-	if len(config.Ports) == 0 {
-		return []networking_istio_io_v1alpha3.Port{{
-				Number:   443,
-				Protocol: "HTTPS",
-				Name:     "https",
-		}}
-	}
-
 	ports := []networking_istio_io_v1alpha3.Port{}
 	for _, port := range config.Ports {
 		ports = append(ports, networking_istio_io_v1alpha3.Port{
