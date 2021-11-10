@@ -162,15 +162,9 @@ func generateNetworkPolicyIngressRule(source resource.Source, inbound skatteetat
 		appLabel["app"] = inbound.Application
 	}
 
-	// TODO: liberator: sette namesapce til app sin ns hvis ikke satt
-	namespace := inbound.Namespace
-	if len(namespace) == 0 {
-		namespace = source.GetNamespace()
-	}
-
 	return &networkingv1.NetworkPolicyIngressRule{
 		Ports: generateNetworkPolicyPorts(inbound.Ports),
-		From:  generateNetworkPolicyPeer(namespace, appLabel),
+		From:  generateNetworkPolicyPeer(inbound.Namespace, appLabel),
 	}
 }
 
@@ -180,15 +174,9 @@ func generateNetworkPolicyEgressRule(source resource.Source, outbound skatteetat
 		appLabel["app"] = outbound.Application
 	}
 
-	// TODO: liberator: sette namesapce til app sin ns hvis ikke satt
-	namespace := outbound.Namespace
-	if len(namespace) == 0 {
-		namespace = source.GetNamespace()
-	}
-
 	return &networkingv1.NetworkPolicyEgressRule{
 		Ports: generateNetworkPolicyPorts(outbound.Ports),
-		To:    generateNetworkPolicyPeer(namespace, appLabel),
+		To:    generateNetworkPolicyPeer(outbound.Namespace, appLabel),
 	}
 }
 
