@@ -28,7 +28,7 @@ func Create(app Source, ast *resource.Ast) {
 		for _, user := range db.Users {
 			if !springDataSourceCreated {
 				secretName := fmt.Sprintf("postgresqluser-pgu-%s-%s", app.GetName(), user.Name)
-				dbVars := GenerateDbEnv("SPRING_DATASOURCE", secretName)
+				dbVars := GenerateDbEnv(user, secretName)
 				ast.Env = append(ast.Env, dbVars...)
 				springDataSourceCreated=true
 			}

@@ -2,13 +2,26 @@ package postgres
 
 import (
 	"fmt"
+	"strings"
 
+	"github.com/nais/liberator/pkg/apis/nebula.skatteetaten.no/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 )
 
-func GenerateDbEnv(prefix string, secretName string) []corev1.EnvVar {
+func GenerateDbEnv(user *v1alpha1.PostgreDatabaseUser, secretName string) []corev1.EnvVar {
 
-	//TODO: støtte go? 			"GO_DATASOURCE":              fmt.Sprintf("host=%s user=%s password=%s port=%d dbname=%s sslmode=require connect_timeout=30", fullyQualifiedServerName, user.Name, userPassword, azure.PostgresPort, databaseNameInAzure),
+	env := generateEnv(strings.ToUpper(fmt.Sprintf("%s_%s", user.Prefix, user.Name)), secretName)
+
+	if user.Primary {
+		env = append(env, generateEnv(strings.ToUpper(user.Prefix), secretName)...)
+	}
+	return env
+
+}
+
+func generateEnv(prefix string, secretName string) []corev1.EnvVar {
+
+	// TODO: støtte go? 			"GO_DATASOURCE":              fmt.Sprintf("host=%s user=%s password=%s port=%d dbname=%s sslmode=require connect_timeout=30", fullyQualifiedServerName, user.Name, userPassword, azure.PostgresPort, databaseNameInAzure),
 	vars := []corev1.EnvVar{
 		{
 			Name:  fmt.Sprintf("%s_URL", prefix),
@@ -63,5 +76,6 @@ func GenerateDbEnv(prefix string, secretName string) []corev1.EnvVar {
 			},
 		},
 	}
+
 	return vars
 }
