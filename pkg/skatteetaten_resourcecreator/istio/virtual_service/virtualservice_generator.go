@@ -3,6 +3,7 @@ package virtual_service
 import (
 	"fmt"
 
+	nais_io_v1 "github.com/nais/liberator/pkg/apis/nais.io/v1"
 	skatteetaten_no_v1alpha1 "github.com/nais/liberator/pkg/apis/nebula.skatteetaten.no/v1alpha1"
 	networking_istio_io_v1alpha3 "github.com/nais/liberator/pkg/apis/networking.istio.io/v1alpha3"
 	"github.com/nais/naiserator/pkg/resourcecreator/resource"
@@ -12,18 +13,20 @@ import (
 type Source interface {
 	resource.Source
 	GetIngress() *skatteetaten_no_v1alpha1.IngressConfig
+	GetPrometheus() *nais_io_v1.PrometheusConfig
 }
 
 func Create(app Source, ast *resource.Ast, options resource.Options) {
 	ingressConfig := app.GetIngress()
+	prometheusPath := app.GetPrometheus().Path
 	if ingressConfig != nil && ingressConfig.Public != nil {
 		for _, ingress := range ingressConfig.Public {
-			generateVirtualService(app, ast, &ingress, options)
+			generateVirtualService(app, ast, &ingress, options, prometheusPath)
 		}
 	}
 }
 
-func generateVirtualService(source resource.Source, ast *resource.Ast, ingress *skatteetaten_no_v1alpha1.PublicIngressConfig, options resource.Options){
+func generateVirtualService(source resource.Source, ast *resource.Ast, ingress *skatteetaten_no_v1alpha1.PublicIngressConfig, options resource.Options, prometheusPath string) {
 	// comet-comet-utv.<domain>
 	fqdn := fmt.Sprintf("%s-%s.%s", source.GetName(), source.GetNamespace(), options.AzureDomainName)
 
@@ -53,6 +56,22 @@ func generateVirtualService(source resource.Source, ast *resource.Ast, ingress *
 						},
 					},
 				}},
+			},
+			{
+				Match: []networking_istio_io_v1alpha3.HTTPMatchRequest{{
+					URI: networking_istio_io_v1alpha3.StringMatch{
+						Prefix: prometheusPath,
+					},
+				}},
+				Route: []networking_istio_io_v1alpha3.HTTPRouteDestination{{
+					Destination: networking_istio_io_v1alpha3.Destination{
+						Host: fmt.Sprintf("%s.%s.svc.cluster.local", source.GetName(), source.GetNamespace()),
+						Port: networking_istio_io_v1alpha3.PortSelector{
+							Number: uint32(ingress.ServicePort),
+						},
+					},
+				}},
+				Rewrite: &networking_istio_io_v1alpha3.HTTPRewrite{Uri: "/"},
 			}},
 		},
 	}
