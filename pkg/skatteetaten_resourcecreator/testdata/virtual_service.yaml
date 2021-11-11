@@ -45,11 +45,22 @@ tests:
               - myapplication-mynamespace.mydomain
             http:
               - route:
-                  - destination:
-                      host: myapplication.mynamespace.svc.cluster.local
-                      port:
-                        number: 8080
-                    weight: 0
+                - destination:
+                    host: myapplication.mynamespace.svc.cluster.local
+                    port:
+                      number: 8080
+                  weight: 0
+              - match:
+                - uri:
+                    prefix: /metrics
+                rewrite:
+                  uri: /
+                route:
+                - destination:
+                    host: myapplication.mynamespace.svc.cluster.local
+                    port:
+                      number: 8080
+                  weight: 0
   - operation: CreateOrUpdate
     apiVersion: networking.istio.io/v1alpha3
     kind: VirtualService
@@ -67,11 +78,22 @@ tests:
               - test.mydomain
             http:
               - route:
-                  - destination:
-                      host: myapplication.mynamespace.svc.cluster.local
-                      port:
-                        number: 80
-                    weight: 0
+                - destination:
+                    host: myapplication.mynamespace.svc.cluster.local
+                    port:
+                      number: 80
+                  weight: 0
+              - match:
+                - uri:
+                    prefix: /metrics
+                rewrite:
+                  uri: /
+                route:
+                - destination:
+                    host: myapplication.mynamespace.svc.cluster.local
+                    port:
+                      number: 80
+                  weight: 0
   - operation: CreateOrUpdate
     apiVersion: networking.istio.io/v1alpha3
     kind: VirtualService
@@ -89,8 +111,19 @@ tests:
               - custom-myapplication-mynamespace.mydomain
             http:
               - route:
-                  - destination:
-                      host: myapplication.mynamespace.svc.cluster.local
-                      port:
-                        number: 80
-                    weight: 0
+                - destination:
+                    host: myapplication.mynamespace.svc.cluster.local
+                    port:
+                      number: 80
+                  weight: 0
+              - match:
+                - uri:
+                    prefix: /metrics
+                rewrite:
+                  uri: /
+                route:
+                - destination:
+                    host: myapplication.mynamespace.svc.cluster.local
+                    port:
+                      number: 80
+                  weight: 0
