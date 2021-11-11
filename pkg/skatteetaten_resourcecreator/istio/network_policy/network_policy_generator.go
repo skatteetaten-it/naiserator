@@ -16,6 +16,7 @@ const (
 	KubeNamespace = "kube-system"
 	MetricsPort   = 15020
 	DNSPort       = 53
+	AzureSubnet   = "10.0.0.0/8"
 )
 
 type Source interface {
@@ -25,7 +26,7 @@ type Source interface {
 	GetAzure() *skatteetaten_no_v1alpha1.AzureConfig
 }
 
-func Create(app Source, ast *resource.Ast) {
+func Create(app Source, ast *resource.Ast, options resource.Options) {
 	ingressConfig := app.GetIngress()
 	egressConfig := app.GetEgress()
 	np := generateNetworkPolicy(app)
@@ -86,7 +87,7 @@ func Create(app Source, ast *resource.Ast) {
 
 		//if we have external integrations or we have an azure resource
 		if len(egressConfig.External) > 0 || app.GetAzure() != nil {
-			np.Spec.Egress = append(np.Spec.Egress, generateNetworkPolicyExternalEgressRule())
+			np.Spec.Egress = append(np.Spec.Egress, generateNetworkPolicyExternalEgressRule(options))
 			np.Spec.Egress = append(np.Spec.Egress, networkingv1.NetworkPolicyEgressRule{
 				To: []networkingv1.NetworkPolicyPeer{{
 					IPBlock: &networkingv1.IPBlock{
@@ -180,18 +181,21 @@ func generateNetworkPolicyEgressRule(source resource.Source, outbound skatteetat
 	}
 }
 
-func generateNetworkPolicyExternalEgressRule() networkingv1.NetworkPolicyEgressRule {
+func generateNetworkPolicyExternalEgressRule(options resource.Options) networkingv1.NetworkPolicyEgressRule {
 	// The Calico version on AKS only supports IP based rules for external hosts. (Calico enterprise
 	// supports hostname based filtering). Doing IP-based filtering is not a viable solution, so to
 	// allow any external traffic we need accept all. However, we can still force use of Network
 	// Policies for any internal traffic. For external egress we use Istio ServiceEntry to handle
 	// filtering in Istio. Note that egress has to be configured in Azure firewall (NSG) as well.
+	if len(options.AzureSubnet) == 0 {
+		options.AzureSubnet = AzureSubnet
+	}
 	return networkingv1.NetworkPolicyEgressRule{
 		To: []networkingv1.NetworkPolicyPeer{{
 			IPBlock: &networkingv1.IPBlock{
 				CIDR: "0.0.0.0/0",
 				Except: []string{
-					"10.0.0.0/8",
+					options.AzureSubnet,
 					"172.16.0.0/12",
 					"192.168.0.0/16",
 				},

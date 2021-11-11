@@ -105,6 +105,7 @@ type Azure struct {
 	SubscriptionName   string  `json:"subscription-name"`
 	SubscriptionId     string  `json:"subscription-id"`
 	DomainName         string  `json:"domain-name"`
+	Subnet             string  `json:"subnet"`
 }
 
 type Config struct {
@@ -182,6 +183,7 @@ const (
 	AzureSubscriptionName               = "azure.subscription-name"
 	AzureSubscriptionId                 = "azure.subscription-id"
 	AzureDomainName                     = "azure.domain-name"
+	AzureSubnet                         = "azure.subnet"
 )
 
 func bindNAIS() {
@@ -289,6 +291,7 @@ func init() {
 	flag.String(AzureSubscriptionName, "", "Name of subscription")
 	flag.String(AzureSubscriptionId, "", "UUID of subscription")
 	flag.String(AzureDomainName, "", "The postfix of the domain")
+	flag.String(AzureSubnet, "10.0.0.0/8", "The CIDR of the AKS subnet")
 }
 
 // Print out all configuration options except secret stuff.

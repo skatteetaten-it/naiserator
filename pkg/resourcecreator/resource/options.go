@@ -36,6 +36,7 @@ type Options struct {
 	AzureSubscriptionName             string
 	AzureSubscriptionId               string
 	AzureDomainName                   string
+	AzureSubnet                       string
 }
 
 // NewOptions creates a struct with the default resource options.
