@@ -27,7 +27,6 @@ func Create(app Source, ast *resource.Ast) {
 	}
 }
 
-//      "blob": "https://sgsupernovautv.blob.core.windows.net/",
 
 func generateStorageAccount(source resource.Source, ast *resource.Ast, rg string, sg *skatteetaten_no_v1alpha1.StorageAccountConfig) {
 	objectMeta := resource.CreateObjectMeta(source)
@@ -61,7 +60,7 @@ func generateStorageAccount(source resource.Source, ast *resource.Ast, rg string
 
 	ast.AppendOperation(resource.OperationCreateIfNotExists, object)
 	envVar := createConnectionStringEnvVar(objectMeta, sg)
-	ast.Env = append(ast.Env, envVar)
+	ast.Env = append(ast.Env, envVar...)
 
 	config :=skatteetaten_no_v1alpha1.ExternalEgressConfig{
 		Host:  fmt.Sprintf("%s.blob.core.windows.net", objectMeta.Name),
@@ -75,11 +74,26 @@ func generateStorageAccount(source resource.Source, ast *resource.Ast, rg string
 
 }
 
-func createConnectionStringEnvVar(objectMeta metav1.ObjectMeta, sg *skatteetaten_no_v1alpha1.StorageAccountConfig) corev1.EnvVar {
+func createConnectionStringEnvVar(objectMeta metav1.ObjectMeta, sg *skatteetaten_no_v1alpha1.StorageAccountConfig) []corev1.EnvVar {
 	secretName := fmt.Sprintf("storageaccount-%s", objectMeta.Name)
 
-	envVar := corev1.EnvVar{
-		Name: fmt.Sprintf("AZURE_STORAGE_%s_CONNECTIONSTRING", strings.ToUpper(sg.Name)),
+	var envs []corev1.EnvVar
+	if sg.Primary {
+		envs = append(envs, corev1.EnvVar{
+			Name: fmt.Sprintf("%s_CONNECTIONSTRING",strings.ToUpper(sg.Prefix)),
+			ValueFrom: &corev1.EnvVarSource{
+				SecretKeyRef: &corev1.SecretKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: secretName,
+					},
+					Key: "connectionString0",
+				},
+			},
+		})
+
+	}
+	envs = append(envs, corev1.EnvVar{
+		Name: fmt.Sprintf("%s_%s_CONNECTIONSTRING",strings.ToUpper(sg.Prefix), strings.ToUpper(sg.Name)),
 		ValueFrom: &corev1.EnvVarSource{
 			SecretKeyRef: &corev1.SecretKeySelector{
 				LocalObjectReference: corev1.LocalObjectReference{
@@ -88,6 +102,7 @@ func createConnectionStringEnvVar(objectMeta metav1.ObjectMeta, sg *skatteetaten
 				Key: "connectionString0",
 			},
 		},
-	}
-	return envVar
+	})
+
+	return envs
 }

@@ -22,17 +22,13 @@ type Source interface {
 func Create(app Source, ast *resource.Ast) {
 	cosmosDb := app.GetCosmosDb()
 	resourceGroup := app.GetAzureResourceGroup()
-	single := false
-	if len(cosmosDb) == 1 {
-		single = true
-	}
 
 	for _, db := range cosmosDb {
-		generateCosmosDb(app, ast, resourceGroup, db, single)
+		generateCosmosDb(app, ast, resourceGroup, db)
 	}
 }
 
-func generateCosmosDb(source resource.Source, ast *resource.Ast, rg string, db *skatteetaten_no_v1alpha1.CosmosDBConfig, single bool) {
+func generateCosmosDb(source resource.Source, ast *resource.Ast, rg string, db *skatteetaten_no_v1alpha1.CosmosDBConfig) {
 	objectMeta := resource.CreateObjectMeta(source)
 	objectMeta.Name = fmt.Sprintf("cod-%s-%s-%s", source.GetNamespace(), source.GetName(), db.Name)
 
@@ -63,7 +59,7 @@ func generateCosmosDb(source resource.Source, ast *resource.Ast, rg string, db *
 	}
 
 	ast.AppendOperation(resource.OperationCreateIfNotExists, object)
-	envVar := createConnectionStringEnvVar(objectMeta, db, single)
+	envVar := createConnectionStringEnvVar(objectMeta, db)
 	ast.Env = append(ast.Env, envVar...)
 
 	config :=skatteetaten_no_v1alpha1.ExternalEgressConfig{
@@ -78,17 +74,14 @@ func generateCosmosDb(source resource.Source, ast *resource.Ast, rg string, db *
 }
 
 
-func createConnectionStringEnvVar(objectMeta metav1.ObjectMeta, db *skatteetaten_no_v1alpha1.CosmosDBConfig, single bool) []corev1.EnvVar {
+func createConnectionStringEnvVar(objectMeta metav1.ObjectMeta, db *skatteetaten_no_v1alpha1.CosmosDBConfig) []corev1.EnvVar {
 	secretName := fmt.Sprintf("cosmosdb-%s", objectMeta.Name)
 
-	prefix := "SPRING_DATA_MONGODB"
-	if db.MongoDBVersion == "" {
-		prefix = "COSMOSDB"
-	}
+	var envs []corev1.EnvVar
+	if db.Primary {
 
-	if !single {
-		envVar := corev1.EnvVar{
-			Name: fmt.Sprintf("%s_%s_URI", prefix, strings.ToUpper(db.Name)),
+		envs = append(envs, corev1.EnvVar{
+			Name: strings.ToUpper(fmt.Sprintf("%s_URI", db.Prefix)),
 			ValueFrom: &corev1.EnvVarSource{
 				SecretKeyRef: &corev1.SecretKeySelector{
 					LocalObjectReference: corev1.LocalObjectReference{
@@ -97,27 +90,31 @@ func createConnectionStringEnvVar(objectMeta metav1.ObjectMeta, db *skatteetaten
 					Key: "PrimaryMongoDBConnectionString",
 				},
 			},
-		}
-		return []corev1.EnvVar{envVar}
+		})
+
+		envs = append(envs, corev1.EnvVar{
+			Name:  strings.ToUpper(fmt.Sprintf("%s_DATABASE", db.Prefix)),
+			Value: db.Name,
+		})
 	}
 
-	uri := corev1.EnvVar{
-		Name: fmt.Sprintf("%s_URI", prefix),
+	//TODO: not really sure what to do here if this is not mongodb
+	envs = append(envs, corev1.EnvVar{
+		Name: strings.ToUpper(fmt.Sprintf("%s_%s_URI", db.Prefix, db.Name)),
 		ValueFrom: &corev1.EnvVarSource{
 			SecretKeyRef: &corev1.SecretKeySelector{
 				LocalObjectReference: corev1.LocalObjectReference{
 					Name: secretName,
 				},
 				Key: "PrimaryMongoDBConnectionString",
-				//TODO: not sure what to do if this is not mongodb?
 			},
 		},
-	}
+	})
 
-	name := corev1.EnvVar{
-		Name:  fmt.Sprintf("%s_DATABASE", prefix),
+	envs = append(envs, corev1.EnvVar{
+		Name:  strings.ToUpper(fmt.Sprintf("%s_%s_DATABASE", db.Prefix, db.Name)),
 		Value: db.Name,
-	}
-	return []corev1.EnvVar{uri, name}
+	})
+	return envs
 
 }
