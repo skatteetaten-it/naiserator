@@ -211,13 +211,21 @@ tests:
     apiVersion: apps/v1
     kind: Deployment
     name: myapplication
+    exclude:
+      - .metadata
+      - .status
     match:
       - type: subset
-        name: "restricted securitycontext"
+        name: "Deployment"
         resource:
           spec:
             replicas: 2
             template:
+              metadata:
+                annotations:
+                  prometheus.io/path: /metrics
+                  prometheus.io/port: "8080"
+                  prometheus.io/scrape: "true"
               spec:
                 containers:
                   - securityContext:
