@@ -44,18 +44,18 @@ tests:
             hosts:
               - myapplication-mynamespace.mydomain
             http:
-              - route:
-                - destination:
-                    host: myapplication.mynamespace.svc.cluster.local
-                    port:
-                      number: 8080
-                  weight: 0
               - match:
-                - uri:
-                    prefix: /metrics
+                  - uri:
+                      prefix: /metrics
                 rewrite:
                   uri: /
                 route:
+                  - destination:
+                      host: myapplication.mynamespace.svc.cluster.local
+                      port:
+                        number: 8080
+                    weight: 0
+              - route:
                 - destination:
                     host: myapplication.mynamespace.svc.cluster.local
                     port:
@@ -77,18 +77,18 @@ tests:
             hosts:
               - test.mydomain
             http:
-              - route:
-                - destination:
-                    host: myapplication.mynamespace.svc.cluster.local
-                    port:
-                      number: 80
-                  weight: 0
               - match:
-                - uri:
-                    prefix: /metrics
+                  - uri:
+                      prefix: /metrics
                 rewrite:
                   uri: /
                 route:
+                  - destination:
+                      host: myapplication.mynamespace.svc.cluster.local
+                      port:
+                        number: 80
+                    weight: 0
+              - route:
                 - destination:
                     host: myapplication.mynamespace.svc.cluster.local
                     port:
@@ -110,18 +110,18 @@ tests:
             hosts:
               - custom-myapplication-mynamespace.mydomain
             http:
-              - route:
-                - destination:
-                    host: myapplication.mynamespace.svc.cluster.local
-                    port:
-                      number: 80
-                  weight: 0
               - match:
-                - uri:
-                    prefix: /metrics
+                  - uri:
+                      prefix: /metrics
                 rewrite:
                   uri: /
                 route:
+                  - destination:
+                      host: myapplication.mynamespace.svc.cluster.local
+                      port:
+                        number: 80
+                    weight: 0
+              - route:
                 - destination:
                     host: myapplication.mynamespace.svc.cluster.local
                     port:
