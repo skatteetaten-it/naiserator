@@ -38,6 +38,10 @@ func generateVirtualService(source resource.Source, ast *resource.Ast, ingress *
 		fqdn = fmt.Sprintf("%s.%s", ingress.OverrideHostname, options.AzureDomainName)
 	}
 
+	// Note that HTTP routes are parsed in the sequence they are listed.
+	// The default route is the last rule and new rules must be added above that
+	// and relative to the other rules depending on the matching rules. E.g
+	// A matching rule with prefix /foo/bar should always come before a match on /foo
 	vs := &networking_istio_io_v1alpha3.VirtualService{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "networking.istio.io/v1alpha3",
