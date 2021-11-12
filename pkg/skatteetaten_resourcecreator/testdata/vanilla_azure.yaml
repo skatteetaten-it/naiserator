@@ -73,18 +73,18 @@ tests:
             hosts:
              - myapplication-mynamespace.istio.nebula.dev.skatteetaten.io
             http:
-              - route:
-                - destination:
-                    host: myapplication.mynamespace.svc.cluster.local
-                    port:
-                      number: 80
-                  weight: 0
               - match:
-                - uri:
-                    prefix: /metrics
+                  - uri:
+                      prefix: /metrics
                 rewrite:
                   uri: /
                 route:
+                  - destination:
+                      host: myapplication.mynamespace.svc.cluster.local
+                      port:
+                        number: 80
+                    weight: 0
+              - route:
                 - destination:
                     host: myapplication.mynamespace.svc.cluster.local
                     port:

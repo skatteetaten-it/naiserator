@@ -48,31 +48,31 @@ func generateVirtualService(source resource.Source, ast *resource.Ast, ingress *
 			Hosts:    []string{fqdn},
 			Gateways: []string{"istio-system/istio-ingress-gateway"},
 			HTTP: []networking_istio_io_v1alpha3.HTTPRoute{{
-				Route: []networking_istio_io_v1alpha3.HTTPRouteDestination{{
-					Destination: networking_istio_io_v1alpha3.Destination{
-						Host: fmt.Sprintf("%s.%s.svc.cluster.local", source.GetName(), source.GetNamespace()),
-						Port: networking_istio_io_v1alpha3.PortSelector{
-							Number: uint32(ingress.ServicePort),
+					Match: []networking_istio_io_v1alpha3.HTTPMatchRequest{{
+						URI: networking_istio_io_v1alpha3.StringMatch{
+							Prefix: prometheusPath,
 						},
-					},
-				}},
+					}},
+					Route: []networking_istio_io_v1alpha3.HTTPRouteDestination{{
+						Destination: networking_istio_io_v1alpha3.Destination{
+							Host: fmt.Sprintf("%s.%s.svc.cluster.local", source.GetName(), source.GetNamespace()),
+							Port: networking_istio_io_v1alpha3.PortSelector{
+								Number: uint32(ingress.ServicePort),
+							},
+						},
+					}},
+					Rewrite: &networking_istio_io_v1alpha3.HTTPRewrite{Uri: "/"},
+				},{
+					Route: []networking_istio_io_v1alpha3.HTTPRouteDestination{{
+						Destination: networking_istio_io_v1alpha3.Destination{
+							Host: fmt.Sprintf("%s.%s.svc.cluster.local", source.GetName(), source.GetNamespace()),
+							Port: networking_istio_io_v1alpha3.PortSelector{
+								Number: uint32(ingress.ServicePort),
+							},
+						},
+					}},
+				},
 			},
-			{
-				Match: []networking_istio_io_v1alpha3.HTTPMatchRequest{{
-					URI: networking_istio_io_v1alpha3.StringMatch{
-						Prefix: prometheusPath,
-					},
-				}},
-				Route: []networking_istio_io_v1alpha3.HTTPRouteDestination{{
-					Destination: networking_istio_io_v1alpha3.Destination{
-						Host: fmt.Sprintf("%s.%s.svc.cluster.local", source.GetName(), source.GetNamespace()),
-						Port: networking_istio_io_v1alpha3.PortSelector{
-							Number: uint32(ingress.ServicePort),
-						},
-					},
-				}},
-				Rewrite: &networking_istio_io_v1alpha3.HTTPRewrite{Uri: "/"},
-			}},
 		},
 	}
 	vs.ObjectMeta.Name = fqdn
