@@ -11,30 +11,30 @@ input:
   apiVersion: nebula.skatteetaten.no/v1alpha1
   metadata:
     name: myapplication
-    namespace: mynamespace
+    namespace: example-mynamespace
     uid: "123456"
   spec:
     pod:
       image: navikt/myapplication:1.2.3
     imagePolicy:
-      enabled: true
+      nameSuffix: "0.x"
       semver: ">=0.0.0 <1.0.0"
 
 tests:
-  - operation: CreateOrUpdate
+  - operation: CreateIfNotExists
     apiVersion: image.toolkit.fluxcd.io/v1beta1
     kind: ImagePolicy
-    name: myapplication-mynamespace
+    name: myapplication-0.x
     match:
-      - name: "image policy for branch"
+      - name: "image policy for semver"
         type: exact
         exclude:
           - .status
           - .metadata.creationTimestamp
         resource:
           metadata:
-            name: myapplication-mynamespace
-            namespace: mynamespace
+            name: myapplication-0.x
+            namespace: example
           spec:
             imageRepositoryRef:
               name: myapplication
@@ -42,3 +42,21 @@ tests:
               semver:
                 range: '>=0.0.0 <1.0.0'
 
+  - operation: CreateIfNotExists
+    apiVersion: image.toolkit.fluxcd.io/v1beta1
+    kind: ImageRepository
+    name: myapplication
+    match:
+      - name: "image repo for myapp"
+        type: exact
+        exclude:
+          - .status
+          - .metadata.creationTimestamp
+        resource:
+          metadata:
+            name: myapplication
+            namespace: example
+          spec:
+            interval: 1m0s
+            secretRef:
+              name: ghcr-secret

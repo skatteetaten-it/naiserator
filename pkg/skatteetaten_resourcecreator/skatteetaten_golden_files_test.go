@@ -22,6 +22,7 @@ type skatteetatenApplicationTestCase struct {
 
 
 func TestSkatteetatenApplicationGoldenFile(t *testing.T) {
+
 	goldenfile.Run(t, skatteeteatenApplicationTestDataDirectory, func(input []byte, resourceOptions resource.Options) (resource.Operations, error) {
 		test := skatteetatenApplicationTestCase{}
 		err := yaml.Unmarshal(input, &test)
