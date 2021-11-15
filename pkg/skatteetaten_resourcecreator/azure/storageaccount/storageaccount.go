@@ -1,7 +1,10 @@
 package storageaccount
 
 import (
+	"crypto/sha1"
+	"encoding/hex"
 	"fmt"
+	"regexp"
 	"strings"
 
 	azure_microsoft_com_v1alpha1 "github.com/nais/liberator/pkg/apis/azure.microsoft.com/v1alpha1"
@@ -19,18 +22,28 @@ type Source interface {
 	GetStorageAccounts() map[string]*skatteetaten_no_v1alpha1.StorageAccountConfig
 }
 
-func Create(app Source, ast *resource.Ast) {
+type ResourceName struct {
+	name string
+	azureName string
+}
+
+func Create(app Source, ast *resource.Ast, options resource.Options) {
 	storageAccounts := app.GetStorageAccounts()
 	resourceGroup := app.GetAzureResourceGroup()
+	subscription := options.AzureSubscriptionName
 	for _, sg := range storageAccounts {
-		generateStorageAccount(app, ast, resourceGroup, sg)
+		generateStorageAccount(app, ast, resourceGroup, sg, subscription)
 	}
 }
 
 
-func generateStorageAccount(source resource.Source, ast *resource.Ast, rg string, sg *skatteetaten_no_v1alpha1.StorageAccountConfig) {
+func generateStorageAccount(source resource.Source, ast *resource.Ast, rg string, sg *skatteetaten_no_v1alpha1.StorageAccountConfig, subscription string) {
 	objectMeta := resource.CreateObjectMeta(source)
-	objectMeta.Name = strings.ReplaceAll(fmt.Sprintf("sg%s%s%s", source.GetNamespace(), source.GetName(), sg.Name), "-", "")
+	// TODO: With ASO v2 change this to
+	//   objectMeta.Name = resourceName.Name
+	//   objectMeta.AzureName = resourceName.azureName
+	resourceName := generateName(subscription, source.GetNamespace(), source.GetName(), sg.Name)
+	objectMeta.Name = resourceName.azureName
 
 	object := &azure_microsoft_com_v1alpha1.StorageAccount{
 		TypeMeta: metav1.TypeMeta{
@@ -59,11 +72,11 @@ func generateStorageAccount(source resource.Source, ast *resource.Ast, rg string
 	}
 
 	ast.AppendOperation(resource.OperationCreateIfNotExists, object)
-	envVar := createConnectionStringEnvVar(objectMeta, sg)
+	envVar := createConnectionStringEnvVar(sg, resourceName.azureName)
 	ast.Env = append(ast.Env, envVar...)
 
 	config :=skatteetaten_no_v1alpha1.ExternalEgressConfig{
-		Host:  fmt.Sprintf("%s.blob.core.windows.net", objectMeta.Name),
+		Host:  fmt.Sprintf("%s.blob.core.windows.net", resourceName.azureName),
 		Ports: []skatteetaten_no_v1alpha1.PortConfig{{
 			Name:     "https",
 			Port:     443,
@@ -71,11 +84,10 @@ func generateStorageAccount(source resource.Source, ast *resource.Ast, rg string
 		}}}
 	seName:= fmt.Sprintf("sg-%s", sg.Name)
 	service_entry.GenerateServiceEntry(source, ast, seName, config)
-
 }
 
-func createConnectionStringEnvVar(objectMeta metav1.ObjectMeta, sg *skatteetaten_no_v1alpha1.StorageAccountConfig) []corev1.EnvVar {
-	secretName := fmt.Sprintf("storageaccount-%s", objectMeta.Name)
+func createConnectionStringEnvVar(sg *skatteetaten_no_v1alpha1.StorageAccountConfig, azureName string) []corev1.EnvVar {
+	secretName := fmt.Sprintf("storageaccount-%s", azureName)
 
 	var envs []corev1.EnvVar
 	if sg.Primary {
@@ -105,4 +117,31 @@ func createConnectionStringEnvVar(objectMeta metav1.ObjectMeta, sg *skatteetaten
 	})
 
 	return envs
+}
+
+func generateName(subscription string, namespace string, appName string, sgName string) ResourceName {
+	// Storage account names must be between 3 and 24 characters in length and may contain numbers
+	// and lowercase letters only. The storage account name must be unique within Azure.
+	k8sName := fmt.Sprintf("%s-%s", appName, sgName)
+
+	// Generate SHA1 from full name and extract the first 7 chars
+	fullName := fmt.Sprintf("%s-%s-%s", subscription, namespace, k8sName)
+	h := sha1.New()
+	h.Write([]byte(fullName))
+
+	sha1String := hex.EncodeToString(h.Sum(nil))
+	sha1String = sha1String[0:7]
+
+	// Filter all non-alphanumeric chars and leave max 14 chars from k8s name as prefix
+	// to azure name. Full name is only used for generating the hash.
+	reg, _ := regexp.Compile("[^a-zA-Z0-9]+")
+	name := []rune(reg.ReplaceAllString(k8sName, ""))
+
+	// azureName: sg<k8s name><hash of full name>
+	azureName := fmt.Sprintf("sg%s%s", string(name[0:14]), sha1String)
+
+	return ResourceName{
+		name: k8sName,
+		azureName: azureName,
+	}
 }

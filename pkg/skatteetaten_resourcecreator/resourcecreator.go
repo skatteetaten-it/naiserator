@@ -51,7 +51,7 @@ func CreateSkatteetatenApplication(source resource.Source, resourceOptions resou
 
 	if app.Spec.Azure != nil {
 		postgres.Create(app, ast)
-		storageaccount.Create(app, ast)
+		storageaccount.Create(app, ast, resourceOptions)
 		cosmosdb.Create(app, ast)
 	}
 

@@ -5,6 +5,7 @@ resourceoptions:
   NumReplicas: 1
   SkattUsePullSecret: true
   SecurePodSecurityContext: true
+  AzureSubscriptionName: "my.subscription"
 
 input:
   kind: Application
@@ -50,17 +51,17 @@ tests:
               spec:
                 containers:
                   - env:
-                    - name: AZURE_STORAGE_TEST_CONNECTIONSTRING
-                      valueFrom:
-                        secretKeyRef:
-                          key: connectionString0
-                          name: storageaccount-sgmynamespacemyapplicationtest
+                      - name: AZURE_STORAGE_TEST_CONNECTIONSTRING
+                        valueFrom:
+                          secretKeyRef:
+                            key: connectionString0
+                            name: storageaccount-sgmyapplicationt78c2c55
 
 
   - operation: CreateIfNotExists
     apiVersion: azure.microsoft.com/v1alpha1
     kind: StorageAccount
-    name: sgmynamespacemyapplicationtest
+    name: sgmyapplicationt78c2c55
     match:
       - type: exact
         exclude:
@@ -92,7 +93,7 @@ tests:
         resource:
           spec:
             hosts:
-              - sgmynamespacemyapplicationtest.blob.core.windows.net
+              - sgmyapplicationt78c2c55.blob.core.windows.net
             location: MESH_EXTERNAL
             ports:
               - name: https
