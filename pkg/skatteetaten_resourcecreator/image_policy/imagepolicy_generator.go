@@ -50,8 +50,8 @@ func Create(app Source, ast *resource.Ast) error {
 		}
 		//TODO: validate branch name?
 		tags = &fluxcd_io_image_reflector_v1beta1.TagFilter{
-			Extract: "$date$time$number",
-			Pattern: fmt.Sprintf(`^SNAPSHOT-%s-(?P<date>[0-9]+)\.(?P<time>[0-9]+)-(?P<number>[0-9]+)`, imagePolicy.Branch),
+			Extract: "$time",
+			Pattern: fmt.Sprintf(`^%s-([0-9a-z]+)-(?P<time>[0-9]+)`, imagePolicy.Branch),
 		}
 	} else if imagePolicy.Semver != "" {
 		choice = fluxcd_io_image_reflector_v1beta1.ImagePolicyChoice{
