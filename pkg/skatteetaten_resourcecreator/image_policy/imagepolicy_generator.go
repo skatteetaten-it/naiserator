@@ -96,7 +96,7 @@ func Create(app Source, ast *resource.Ast) error {
 				Duration: 1 * time.Minute,
 			},
 			SecretRef:     &fluxcd_io_image_reflector_v1beta1.LocalObjectReference{
-				Name: "ghcr-secret",
+				Name: "gh-docker-credentials",
 			},
 		},
 	}

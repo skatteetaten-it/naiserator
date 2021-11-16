@@ -59,4 +59,4 @@ tests:
           spec:
             interval: 1m0s
             secretRef:
-              name: ghcr-secret
+              name: gh-docker-credentials
