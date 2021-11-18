@@ -11,6 +11,7 @@ import (
 	skatteetaten_no_v1alpha1 "github.com/nais/liberator/pkg/apis/nebula.skatteetaten.no/v1alpha1"
 	"github.com/nais/naiserator/pkg/resourcecreator/resource"
 	"github.com/nais/naiserator/pkg/skatteetaten_resourcecreator/istio/service_entry"
+	"github.com/nais/naiserator/pkg/util"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/pointer"
@@ -124,7 +125,8 @@ func generateName(subscription string, namespace string, appName string, sgName 
 	// and lowercase letters only. The storage account name must be unique within Azure.
 	k8sName := fmt.Sprintf("%s-%s", appName, sgName)
 
-	// Generate SHA1 from full name and extract the first 7 chars
+	// Generate SHA1 from full name and extract the first 7 chars.
+	// Full name is only used for generating the hash.
 	fullName := fmt.Sprintf("%s-%s-%s", subscription, namespace, k8sName)
 	h := sha1.New()
 	h.Write([]byte(fullName))
@@ -133,12 +135,12 @@ func generateName(subscription string, namespace string, appName string, sgName 
 	sha1String = sha1String[0:7]
 
 	// Filter all non-alphanumeric chars and leave max 14 chars from k8s name as prefix
-	// to azure name. Full name is only used for generating the hash.
+	// to azure name.
 	reg, _ := regexp.Compile("[^a-zA-Z0-9]+")
-	name := []rune(reg.ReplaceAllString(k8sName, ""))
+	name := reg.ReplaceAllString(k8sName, "")
 
 	// azureName: sg<k8s name><hash of full name>
-	azureName := fmt.Sprintf("sg%s%s", string(name[0:14]), sha1String)
+	azureName := fmt.Sprintf("sg%s%s", util.SubStr(name, 0, 14), sha1String)
 
 	return ResourceName{
 		name: k8sName,
