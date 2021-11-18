@@ -37,3 +37,17 @@ func GeneratePassword() (string, error) {
 	}
 	return base64.URLEncoding.WithPadding(base64.NoPadding).EncodeToString(key), nil
 }
+
+func SubStr(input string, start int, length int) string {
+	asRunes := []rune(input)
+
+	if start >= len(asRunes) || length < 0 {
+		return ""
+	}
+
+	if start+length > len(asRunes) {
+		length = len(asRunes) - start
+	}
+
+	return string(asRunes[start : start+length])
+}
