@@ -24,6 +24,20 @@ input:
 tests:
   - operation: CreateIfNotExists
     apiVersion: azure.microsoft.com/v1alpha1
+    kind: ResourceGroup
+    name: rg-my-namespace-myrg
+    match:
+      - type: exact
+        exclude:
+          - .metadata
+          - .status
+        name: "azure rg"
+        resource:
+          spec:
+            location: norwayeast
+
+  - operation: CreateIfNotExists
+    apiVersion: azure.microsoft.com/v1alpha1
     kind: StorageAccount
     name: sgappmyst28b8bd6
     match:
@@ -37,7 +51,7 @@ tests:
         resource:
           spec:
             location: norwayeast
-            resourceGroup: myrg
+            resourceGroup: rg-my-namespace-myrg
             sku:
               name: Standard_LRS
             kind: StorageV2

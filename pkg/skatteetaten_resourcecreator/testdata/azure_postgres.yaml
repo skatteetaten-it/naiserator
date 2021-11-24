@@ -17,7 +17,7 @@ input:
     pod:
       image: navikt/myapplication:1.2.3
     azure:
-      resourceGroup: rg-test
+      resourceGroup: test
       postgresDatabase:
         mydb:
           name: mydb
@@ -35,11 +35,6 @@ tests:
           metadata:
             labels:
               app: myapplication
-            ownerReferences:
-              - apiVersion: nebula.skatteetaten.no/v1alpha1
-                kind: Application
-                name: myapplication
-                uid: "123456"
 
   - operation: CreateOrUpdate
     apiVersion: apps/v1
@@ -79,6 +74,19 @@ tests:
                           key: PSqlDatabaseName
                           name: postgresqluser-pgu-myapplication-read
 
+  - operation: CreateIfNotExists
+    apiVersion: azure.microsoft.com/v1alpha1
+    kind: ResourceGroup
+    name: rg-mynamespace-test
+    match:
+      - type: exact
+        exclude:
+          - .metadata
+          - .status
+        name: "azure rg"
+        resource:
+          spec:
+            location: norwayeast
 
   - operation: CreateIfNotExists
     apiVersion: azure.microsoft.com/v1alpha1
@@ -93,7 +101,7 @@ tests:
         resource:
           spec:
             dbName: pgd-mynamespace-myapplication-mydb
-            resourceGroup: rg-test
+            resourceGroup: rg-mynamespace-test
             roles:
               - azure_pg_admin
             server: pgs-mynamespace-myserver
@@ -110,7 +118,7 @@ tests:
         name: "azure database"
         resource:
           spec:
-            resourceGroup: rg-test
+            resourceGroup: rg-mynamespace-test
             server: pgs-mynamespace-myserver
 
   - operation: CreateOrUpdate

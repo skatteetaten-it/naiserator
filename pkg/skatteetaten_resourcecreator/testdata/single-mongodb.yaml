@@ -17,7 +17,7 @@ input:
     pod:
       image: navikt/myapplication:1.2.3
     azure:
-      resourceGroup: rg-test
+      resourceGroup: test
       cosmosDb:
         test:
           enabled: true
@@ -32,11 +32,20 @@ tests:
           metadata:
             labels:
               app: myapplication
-            ownerReferences:
-              - apiVersion: nebula.skatteetaten.no/v1alpha1
-                kind: Application
-                name: myapplication
-                uid: "123456"
+
+  - operation: CreateIfNotExists
+    apiVersion: azure.microsoft.com/v1alpha1
+    kind: ResourceGroup
+    name: rg-mynamespace-test
+    match:
+      - type: exact
+        exclude:
+          - .metadata
+          - .status
+        name: "azure rg"
+        resource:
+          spec:
+            location: norwayeast
 
   - operation: CreateOrUpdate
     apiVersion: apps/v1
@@ -76,7 +85,7 @@ tests:
           spec:
             kind: MongoDB
             location: norwayeast
-            resourceGroup: rg-test
+            resourceGroup: rg-mynamespace-test
             properties:
               databaseAccountOfferType: "Standard"
               mongoDBVersion: "4.0"
