@@ -14,7 +14,6 @@ import (
 	"github.com/nais/naiserator/pkg/skatteetaten_resourcecreator/aurora"
 	"github.com/nais/naiserator/pkg/skatteetaten_resourcecreator/azure/cosmosdb"
 	"github.com/nais/naiserator/pkg/skatteetaten_resourcecreator/azure/postgres"
-	"github.com/nais/naiserator/pkg/skatteetaten_resourcecreator/azure/resourceGroup"
 	"github.com/nais/naiserator/pkg/skatteetaten_resourcecreator/azure/storageaccount"
 	"github.com/nais/naiserator/pkg/skatteetaten_resourcecreator/image_policy"
 	"github.com/nais/naiserator/pkg/skatteetaten_resourcecreator/istio/authorization_policy"
@@ -51,7 +50,6 @@ func CreateSkatteetatenApplication(source resource.Source, resourceOptions resou
 	}
 
 	if app.Spec.Azure != nil {
-		resourceGroup.Create(app, ast)
 		postgres.Create(app, ast)
 		storageaccount.Create(app, ast, resourceOptions)
 		cosmosdb.Create(app, ast)

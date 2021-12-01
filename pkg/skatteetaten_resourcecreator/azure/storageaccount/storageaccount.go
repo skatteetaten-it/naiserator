@@ -10,7 +10,6 @@ import (
 	azure_microsoft_com_v1alpha1 "github.com/nais/liberator/pkg/apis/azure.microsoft.com/v1alpha1"
 	skatteetaten_no_v1alpha1 "github.com/nais/liberator/pkg/apis/nebula.skatteetaten.no/v1alpha1"
 	"github.com/nais/naiserator/pkg/resourcecreator/resource"
-	"github.com/nais/naiserator/pkg/skatteetaten_resourcecreator/azure/resourceGroup"
 	"github.com/nais/naiserator/pkg/skatteetaten_resourcecreator/istio/service_entry"
 	"github.com/nais/naiserator/pkg/util"
 	corev1 "k8s.io/api/core/v1"
@@ -31,7 +30,7 @@ type ResourceName struct {
 
 func Create(app Source, ast *resource.Ast, options resource.Options) {
 	storageAccounts := app.GetStorageAccounts()
-	resourceGroup := resourceGroup.GenerateResourceGroupName(app)
+	resourceGroup := app.GetAzureResourceGroup()
 	subscription := options.AzureSubscriptionName
 	for _, sg := range storageAccounts {
 		generateStorageAccount(app, ast, resourceGroup, sg, subscription)

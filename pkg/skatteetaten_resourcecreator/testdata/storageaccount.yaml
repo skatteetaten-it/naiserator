@@ -18,7 +18,7 @@ input:
     pod:
       image: navikt/myapplication:1.2.3
     azure:
-      resourceGroup: test
+      resourceGroup: rg-test
       storageAccount:
         test:
           enabled: true
@@ -32,20 +32,11 @@ tests:
           metadata:
             labels:
               app: myapplication
-
-  - operation: CreateIfNotExists
-    apiVersion: azure.microsoft.com/v1alpha1
-    kind: ResourceGroup
-    name: rg-my-namespace-test
-    match:
-      - type: exact
-        exclude:
-          - .metadata
-          - .status
-        name: "azure rg"
-        resource:
-          spec:
-            location: norwayeast
+            ownerReferences:
+              - apiVersion: nebula.skatteetaten.no/v1alpha1
+                kind: Application
+                name: myapplication
+                uid: "123456"
 
   - operation: CreateOrUpdate
     apiVersion: apps/v1
@@ -82,7 +73,7 @@ tests:
         resource:
           spec:
             location: norwayeast
-            resourceGroup: rg-my-namespace-test
+            resourceGroup: rg-test
             sku:
               name: Standard_LRS
             kind: StorageV2

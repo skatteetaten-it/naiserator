@@ -6,7 +6,6 @@ import (
 	azure_microsoft_com_v1alpha1 "github.com/nais/liberator/pkg/apis/azure.microsoft.com/v1alpha1"
 	skatteetaten_no_v1alpha1 "github.com/nais/liberator/pkg/apis/nebula.skatteetaten.no/v1alpha1"
 	"github.com/nais/naiserator/pkg/resourcecreator/resource"
-	"github.com/nais/naiserator/pkg/skatteetaten_resourcecreator/azure/resourceGroup"
 	"github.com/nais/naiserator/pkg/skatteetaten_resourcecreator/istio/service_entry"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -21,7 +20,7 @@ type Source interface {
 func Create(app Source, ast *resource.Ast) {
 
 	pgd := app.GetPostgresDatabases()
-	resourceGroup := resourceGroup.GenerateResourceGroupName(app)
+	resourceGroup := app.GetAzureResourceGroup()
 	springDataSourceCreated := false
 	serverNames := map[string]skatteetaten_no_v1alpha1.ExternalEgressConfig {}
 	for _, db := range pgd {

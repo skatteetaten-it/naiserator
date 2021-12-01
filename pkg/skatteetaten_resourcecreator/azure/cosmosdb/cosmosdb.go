@@ -7,7 +7,6 @@ import (
 	azure_microsoft_com_v1alpha1 "github.com/nais/liberator/pkg/apis/azure.microsoft.com/v1alpha1"
 	skatteetaten_no_v1alpha1 "github.com/nais/liberator/pkg/apis/nebula.skatteetaten.no/v1alpha1"
 	"github.com/nais/naiserator/pkg/resourcecreator/resource"
-	"github.com/nais/naiserator/pkg/skatteetaten_resourcecreator/azure/resourceGroup"
 	"github.com/nais/naiserator/pkg/skatteetaten_resourcecreator/istio/service_entry"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -22,7 +21,7 @@ type Source interface {
 
 func Create(app Source, ast *resource.Ast) {
 	cosmosDb := app.GetCosmosDb()
-	resourceGroup := resourceGroup.GenerateResourceGroupName(app)
+	resourceGroup := app.GetAzureResourceGroup()
 
 	for _, db := range cosmosDb {
 		generateCosmosDb(app, ast, resourceGroup, db)
