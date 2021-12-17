@@ -1,0 +1,129 @@
+config:
+  description: VirtualService config
+
+resourceoptions:
+  AzureDomainName: "mydomain"
+
+input:
+  kind: Application
+  apiVersion: nebula.skatteetaten.no/v1alpha1
+  metadata:
+    name: myapplication
+    namespace: mynamespace
+    uid: "123456"
+    labels:
+      team: myteam
+  spec:
+    pod:
+      image: navikt/myapplication:1.2.3
+    ingress:
+      public:
+        default:
+          serviceport: 8080
+        second:
+          overrideHostname: test
+          serviceport: 80
+        third:
+          hostPrefix: custom
+          serviceport: 80
+
+tests:
+  - operation: CreateOrUpdate
+    apiVersion: networking.istio.io/v1alpha3
+    kind: VirtualService
+    name: myapplication-mynamespace.mydomain
+    match:
+      - name: "test set service port"
+        type: exact
+        exclude:
+          - .metadata
+        resource:
+          spec:
+            gateways:
+              - istio-system/istio-ingress-gateway
+            hosts:
+              - myapplication-mynamespace.mydomain
+            http:
+              - match:
+                  - uri:
+                      prefix: /metrics
+                rewrite:
+                  uri: /
+                route:
+                  - destination:
+                      host: myapplication.mynamespace.svc.cluster.local
+                      port:
+                        number: 8080
+                    weight: 0
+              - route:
+                - destination:
+                    host: myapplication.mynamespace.svc.cluster.local
+                    port:
+                      number: 8080
+                  weight: 0
+  - operation: CreateOrUpdate
+    apiVersion: networking.istio.io/v1alpha3
+    kind: VirtualService
+    name: test.mydomain
+    match:
+      - name: "test override hostname"
+        type: exact
+        exclude:
+          - .metadata
+        resource:
+          spec:
+            gateways:
+              - istio-system/istio-ingress-gateway
+            hosts:
+              - test.mydomain
+            http:
+              - match:
+                  - uri:
+                      prefix: /metrics
+                rewrite:
+                  uri: /
+                route:
+                  - destination:
+                      host: myapplication.mynamespace.svc.cluster.local
+                      port:
+                        number: 80
+                    weight: 0
+              - route:
+                - destination:
+                    host: myapplication.mynamespace.svc.cluster.local
+                    port:
+                      number: 80
+                  weight: 0
+  - operation: CreateOrUpdate
+    apiVersion: networking.istio.io/v1alpha3
+    kind: VirtualService
+    name: custom-myapplication-mynamespace.mydomain
+    match:
+      - name: "test set host prefix"
+        type: exact
+        exclude:
+          - .metadata
+        resource:
+          spec:
+            gateways:
+              - istio-system/istio-ingress-gateway
+            hosts:
+              - custom-myapplication-mynamespace.mydomain
+            http:
+              - match:
+                  - uri:
+                      prefix: /metrics
+                rewrite:
+                  uri: /
+                route:
+                  - destination:
+                      host: myapplication.mynamespace.svc.cluster.local
+                      port:
+                        number: 80
+                    weight: 0
+              - route:
+                - destination:
+                    host: myapplication.mynamespace.svc.cluster.local
+                    port:
+                      number: 80
+                  weight: 0

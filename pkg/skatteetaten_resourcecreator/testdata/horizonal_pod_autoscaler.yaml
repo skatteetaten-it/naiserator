@@ -1,0 +1,45 @@
+config:
+  description: horizontal pod autoscaler is set up
+
+input:
+  kind: Application
+  apiVersion: nebula.skatteetaten.no/v1alpha1
+  metadata:
+    name: myapplication
+    namespace: mynamespace
+    uid: "123456"
+    labels:
+      team: myteam
+  spec:
+    replicas:
+      min: 3
+      max: 6
+      cpuThresholdPercentage: 37
+
+tests:
+  - operation: CreateOrUpdate
+    apiVersion: autoscaling/v2beta2
+    kind: HorizontalPodAutoscaler
+    match:
+      - type: exact
+        name: "hpa created with 2-4 replicas and 50% cpu threshold"
+        exclude:
+          - .metadata
+          - .status
+        resource:
+          spec:
+            scaleTargetRef:
+              kind: Deployment
+              name: myapplication
+              apiVersion: apps/v1
+            minReplicas: 3
+            maxReplicas: 6
+            metrics:
+              - type: Resource
+                resource:
+                  name: cpu
+                  target:
+                    type: Utilization
+                    averageUtilization: 37
+
+

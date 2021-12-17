@@ -1,0 +1,45 @@
+config:
+  description: azure application with database
+
+resourceoptions:
+  AzureSubscriptionName: "my.subscription"
+
+input:
+  kind: Application
+  apiVersion: nebula.skatteetaten.no/v1alpha1
+  metadata:
+    name: app
+    namespace: my-namespace
+    uid: "123456"
+  spec:
+    pod:
+      image: navikt/myapplication:1.2.3
+    azure:
+      resourceGroup: myrg
+      storageAccount:
+        test:
+          enabled: true
+          name: myst
+
+tests:
+  - operation: CreateIfNotExists
+    apiVersion: azure.microsoft.com/v1alpha1
+    kind: StorageAccount
+    name: sgappmyst28b8bd6
+    match:
+      - type: exact
+        exclude:
+          - .metadata
+          - .status
+          - .output
+          - .additionalResources
+        name: "azure storageaccount"
+        resource:
+          spec:
+            location: norwayeast
+            resourceGroup: myrg
+            sku:
+              name: Standard_LRS
+            kind: StorageV2
+            accessTier: Hot
+            supportsHttpsTrafficOnly: true

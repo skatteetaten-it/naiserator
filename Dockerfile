@@ -9,12 +9,10 @@ COPY . /src
 RUN mkdir -p /usr/local/kubebuilder
 RUN make kubebuilder
 RUN go test ./...
-RUN cd cmd/naiserator && go build -a -installsuffix cgo -o naiserator
-RUN cd cmd/naiserator_webhook && go build -a -installsuffix cgo -o naiserator_webhook
+RUN cd cmd/nebula && go build -a -installsuffix cgo -o nebula
 
 FROM alpine:3.14
 RUN apk add --no-cache ca-certificates
 WORKDIR /app
-COPY --from=builder /src/cmd/naiserator/naiserator /app/naiserator
-COPY --from=builder /src/cmd/naiserator_webhook/naiserator_webhook /app/naiserator_webhook
-CMD ["/app/naiserator"]
+COPY --from=builder /src/cmd/nebula/nebula /app/nebula
+CMD ["/app/nebula"]

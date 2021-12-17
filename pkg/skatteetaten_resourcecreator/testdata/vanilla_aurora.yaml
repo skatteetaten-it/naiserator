@@ -1,0 +1,60 @@
+config:
+  description: vanilla application running in Azure with default configuration and access policies
+
+resourceoptions:
+  NumReplicas: 1
+  SkattUsePullSecret: true
+  SecurePodSecurityContext: true
+  AzureDomainName: "istio.nebula.dev.skatteetaten.io"
+
+input:
+  kind: Application
+  apiVersion: nebula.skatteetaten.no/v1alpha1
+  metadata:
+    name: myapplication
+    namespace: mynamespace
+    uid: "123456"
+  spec:
+    auroraApplication: true
+    pod:
+      image: navikt/myapplication:1.2.3
+
+tests:
+  - match:
+      - type: subset
+        name: "common metadata"
+        resource:
+          metadata:
+            labels:
+              app: myapplication
+            ownerReferences:
+              - apiVersion: nebula.skatteetaten.no/v1alpha1
+                kind: Application
+                name: myapplication
+                uid: "123456"
+
+  - operation: CreateOrUpdate
+    apiVersion: apps/v1
+    kind: Deployment
+    name: myapplication
+    match:
+      - type: subset
+        name: "mounts log volumes"
+        resource:
+          spec:
+            template:
+              spec:
+                containers:
+                - volumeMounts:
+                  - mountPath: /u01/logs
+                    name: log-volume
+                  - mountPath: /tmp
+                    name: writable-tmp
+                volumes:
+                - emptyDir: { }
+                  name: log-volume
+                - emptyDir: { }
+                  name: writable-tmp
+
+
+

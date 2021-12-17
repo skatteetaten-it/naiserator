@@ -1,0 +1,62 @@
+config:
+  description: image_policy_semver
+
+resourceoptions:
+  NumReplicas: 1
+  SkattUsePullSecret: true
+  SecurePodSecurityContext: true
+
+input:
+  kind: Application
+  apiVersion: nebula.skatteetaten.no/v1alpha1
+  metadata:
+    name: myapplication
+    namespace: example-mynamespace
+    uid: "123456"
+  spec:
+    pod:
+      image: navikt/myapplication:1.2.3
+    imagePolicy:
+      nameSuffix: "0.x"
+      semver: ">=0.0.0 <1.0.0"
+
+tests:
+  - operation: CreateIfNotExists
+    apiVersion: image.toolkit.fluxcd.io/v1beta1
+    kind: ImagePolicy
+    name: myapplication-0.x
+    match:
+      - name: "image policy for semver"
+        type: exact
+        exclude:
+          - .status
+          - .metadata.creationTimestamp
+        resource:
+          metadata:
+            name: myapplication-0.x
+            namespace: example
+          spec:
+            imageRepositoryRef:
+              name: myapplication
+            policy:
+              semver:
+                range: '>=0.0.0 <1.0.0'
+
+  - operation: CreateIfNotExists
+    apiVersion: image.toolkit.fluxcd.io/v1beta1
+    kind: ImageRepository
+    name: myapplication
+    match:
+      - name: "image repo for myapp"
+        type: exact
+        exclude:
+          - .status
+          - .metadata.creationTimestamp
+        resource:
+          metadata:
+            name: myapplication
+            namespace: example
+          spec:
+            interval: 1m0s
+            secretRef:
+              name: gh-docker-credentials

@@ -1,0 +1,65 @@
+config:
+  description: image_policy_branch
+
+resourceoptions:
+  NumReplicas: 1
+  SkattUsePullSecret: true
+  SecurePodSecurityContext: true
+
+input:
+  kind: Application
+  apiVersion: nebula.skatteetaten.no/v1alpha1
+  metadata:
+    name: myapplication
+    namespace: example-mynamespace
+    uid: "123456"
+  spec:
+    pod:
+      image: navikt/myapplication:1.2.3
+    imagePolicy:
+      nameSuffix: mybranch
+      branch: mybranch
+
+tests:
+  - operation: CreateIfNotExists
+    apiVersion: image.toolkit.fluxcd.io/v1beta1
+    kind: ImagePolicy
+    name: myapplication-mybranch
+    match:
+      - name: "image policy for branch"
+        type: exact
+        exclude:
+          - .status
+          - .metadata.creationTimestamp
+        resource:
+          metadata:
+            name: myapplication-mybranch
+            namespace: example
+          spec:
+            filterTags:
+              extract: $time
+              pattern:         ^mybranch-([0-9a-z]+)-(?P<time>[0-9]+)
+            imageRepositoryRef:
+              name: myapplication
+            policy:
+              numerical:
+                order: asc
+
+  - operation: CreateIfNotExists
+    apiVersion: image.toolkit.fluxcd.io/v1beta1
+    kind: ImageRepository
+    name: myapplication
+    match:
+      - name: "image repo for myapp"
+        type: exact
+        exclude:
+          - .status
+          - .metadata.creationTimestamp
+        resource:
+          metadata:
+            name: myapplication
+            namespace: example
+          spec:
+            interval: 1m0s
+            secretRef:
+              name: gh-docker-credentials

@@ -36,3 +36,41 @@ func TestStrTrimMiddle(t *testing.T) {
 		assert.Len(t, truncated, 18)
 	})
 }
+
+func TestSubStr(t *testing.T) {
+	t.Run("zero length substring", func(t *testing.T) {
+		s := "mystring"
+		substr := util.SubStr(s,0,0)
+		assert.Equal(t, "", substr)
+	})
+	t.Run("negativ length substring", func(t *testing.T) {
+		s := "mystring"
+		substr := util.SubStr(s,0,-1)
+		assert.Equal(t, "", substr)
+	})
+	t.Run("start pos higher than substring length", func(t *testing.T) {
+		s := "mystring"
+		substr := util.SubStr(s,10,2)
+		assert.Equal(t, "", substr)
+	})
+	t.Run("substr longer than string", func(t *testing.T) {
+		s := "mystring"
+		substr := util.SubStr(s,0,1000)
+		assert.Equal(t, "mystring", substr)
+	})
+	t.Run("substring equals string", func(t *testing.T) {
+		s := "x"
+		substr := util.SubStr(s,0,1)
+		assert.Equal(t, "x", substr)
+	})
+	t.Run("unicode string", func(t *testing.T) {
+		s := "øøæåøø"
+		substr := util.SubStr(s,2,2)
+		assert.Equal(t, "æå", substr)
+	})
+	t.Run("substring of string", func(t *testing.T) {
+		s := "mysubstring"
+		substr := util.SubStr(s,2,6)
+		assert.Equal(t, "substr", substr)
+	})
+}

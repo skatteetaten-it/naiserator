@@ -1,0 +1,144 @@
+config:
+  description: AuthorizationPolicy generator
+
+resourceoptions:
+  AzureDomainName: "mydomain"
+
+input:
+  kind: Application
+  apiVersion: nebula.skatteetaten.no/v1alpha1
+  metadata:
+    name: myapplication
+    namespace: mynamespace
+    uid: "123456"
+    labels:
+      team: myteam
+  spec:
+    pod:
+      image: navikt/myapplication:1.2.3
+    ingress:
+      public:
+        default:
+          serviceport: 80
+          port: 8080
+      internal:
+        app_in_same_ns:
+          application: inbound_someapp
+        app_in_other_ns:
+          application: inbound_other_app
+          namespace: inbound_other_ns
+        all_apps_in_other_ns:
+          namespace: inbound_other_ns
+        all_apps_in_same_ns:
+          namespace: mynamespace
+        app_with_ports:
+          namespace: inbound_some_ns
+          application: inbound_some_app
+          ports:
+            - protocol: TCP
+              port: 7777
+            - protocol: UDP
+              port: 8888
+        app_with_paths:
+          namespace: inbound_some_ns
+          application: inbound_some_app
+          paths:
+            - /metrics
+            - /healthz
+        app_with_methods:
+          namespace: inbound_some_ns
+          application: inbound_some_app
+          methods:
+            - GET
+            - POST
+        app_all_fields:
+          namespace: inbound_some_ns
+          application: inbound_some_app
+          ports:
+            - protocol: TCP
+              port: 7777
+          paths:
+            - /metrics
+          methods:
+            - GET
+
+tests:
+  - operation: CreateOrUpdate
+    apiVersion: security.istio.io/v1beta1
+    kind: AuthorizationPolicy
+    name: myapplication
+    match:
+      - name: "authorization policy full example"
+        type: exact
+        exclude:
+          - .metadata
+        resource:
+          spec:
+            action: ALLOW
+            rules:
+              - from:
+                  - source:
+                      principals:
+                        - cluster.local/ns/istio-system/sa/istio-ingressgateway-service-account
+                to:
+                  - operation:
+                      ports:
+                        - "8080"
+              - from:
+                  - source:
+                      namespaces:
+                        - inbound_other_ns
+              - from:
+                  - source:
+                      namespaces:
+                        - mynamespace
+              - from:
+                  - source:
+                      principals:
+                        - cluster.local/ns/inbound_some_ns/sa/inbound_some_app
+                to:
+                  - operation:
+                      methods:
+                        - GET
+                      paths:
+                        - /metrics
+                      ports:
+                        - "7777"
+              - from:
+                  - source:
+                      principals:
+                        - cluster.local/ns/inbound_other_ns/sa/inbound_other_app
+              - from:
+                  - source:
+                      principals:
+                        - cluster.local/ns/mynamespace/sa/inbound_someapp
+              - from:
+                  - source:
+                      principals:
+                        - cluster.local/ns/inbound_some_ns/sa/inbound_some_app
+                to:
+                  - operation:
+                      methods:
+                        - GET
+                        - POST
+              - from:
+                  - source:
+                      principals:
+                        - cluster.local/ns/inbound_some_ns/sa/inbound_some_app
+                to:
+                  - operation:
+                      paths:
+                        - /metrics
+                        - /healthz
+              - from:
+                  - source:
+                      principals:
+                        - cluster.local/ns/inbound_some_ns/sa/inbound_some_app
+                to:
+                  - operation:
+                      ports:
+                        - "7777"
+                        - "8888"
+            selector:
+              matchLabels:
+                app: myapplication

@@ -1,0 +1,55 @@
+config:
+  description: VirtualService config
+
+resourceoptions:
+  AzureDomainName: "mydomain"
+
+input:
+  kind: Application
+  apiVersion: nebula.skatteetaten.no/v1alpha1
+  metadata:
+    name: myapplication
+    namespace: mynamespace
+    uid: "123456"
+    labels:
+      team: myteam
+  spec:
+    pod:
+      image: navikt/myapplication:1.2.3
+      prometheus:
+        path: /custom/path
+
+tests:
+  - operation: CreateOrUpdate
+    apiVersion: networking.istio.io/v1alpha3
+    kind: VirtualService
+    name: myapplication-mynamespace.mydomain
+    match:
+      - name: "test set service port"
+        type: exact
+        exclude:
+          - .metadata
+        resource:
+          spec:
+            gateways:
+              - istio-system/istio-ingress-gateway
+            hosts:
+              - myapplication-mynamespace.mydomain
+            http:
+              - match:
+                  - uri:
+                      prefix: /custom/path
+                rewrite:
+                  uri: /
+                route:
+                  - destination:
+                      host: myapplication.mynamespace.svc.cluster.local
+                      port:
+                        number: 80
+                    weight: 0
+              - route:
+                - destination:
+                    host: myapplication.mynamespace.svc.cluster.local
+                    port:
+                      number: 80
+                  weight: 0
